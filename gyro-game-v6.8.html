@@ -1,0 +1,3695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>자이로 서바이벌</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #05060a; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    touch-action: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  }
+  canvas { display: block; background: #05060a; }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px calc(8px + env(safe-area-inset-top, 0px));
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    color: #eee; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.5px; z-index: 5; pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+  #lives { color: #ff5566; }
+  #wave { color: #c9a7ff; font-size: 13px; }
+  #score { color: #7dd3fc; margin-right: 54px; }
+  #buffs { position: fixed; top: 46px; left: 16px; z-index: 5; display:flex; flex-wrap:wrap; gap:6px; max-width: 62%; }
+  #buffs span { font-size: 11px; background:rgba(255,255,255,0.08); padding:3px 8px; border-radius:10px; color:#fff; }
+
+  #pauseBtn {
+    position: fixed; top: calc(10px + env(safe-area-inset-top,0px)); right: 14px; z-index: 7;
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.12); color: #fff; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #131826 0%, #05060a 75%);
+    color: #fff; text-align: center; padding: 24px; box-sizing: border-box;
+    overflow-y: auto;
+  }
+  #pauseScreen, #settingsScreen { background: rgba(5,6,10,0.92); }
+  .overlay h1 { font-size: 26px; margin: 0 0 10px; letter-spacing: 1px; }
+  .overlay h2 { font-size: 20px; margin: 0 0 18px; letter-spacing: 0.5px; }
+  .overlay p { font-size: 14px; color: #9aa4b2; line-height: 1.6; max-width: 320px; margin: 4px 0 4px; }
+  .legend { margin: 14px 0; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 320px; }
+  .legend div { font-size: 10.5px; color: #cbd5e1; display:flex; flex-direction:column; align-items:center; gap:6px; width: 56px; }
+  .dot { display: block; flex-shrink: 0; }
+  .legend-sub { font-size: 10px; color: #6b7280; margin: 2px 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .btn {
+    margin-top: 14px; padding: 14px 36px; border-radius: 30px; border: none;
+    background: linear-gradient(135deg, #ff5566, #ff8a5b); color: #fff;
+    font-size: 17px; font-weight: 700; letter-spacing: 0.5px;
+    box-shadow: 0 6px 20px rgba(255,85,102,0.4);
+  }
+  .btn.secondary {
+    background: rgba(255,255,255,0.1); box-shadow: none; color: #dfe4ea;
+    font-size: 15px; padding: 12px 30px;
+  }
+  .btn.ghost {
+    background: transparent; box-shadow: none; color: #7dd3fc;
+    font-size: 13px; padding: 8px 20px; margin-top: 8px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .hidden { display: none !important; }
+  #finalScore { font-size: 40px; font-weight: 800; color: #ffd166; margin: 6px 0 0; }
+
+  .settings-row { width: 260px; margin: 18px 0; text-align: left; }
+  .settings-row label { font-size: 13px; color: #cbd5e1; display:flex; justify-content: space-between; margin-bottom: 8px; }
+  .settings-row input[type=range] { width: 100%; }
+
+  #dexScreen { padding-top: 44px; padding-bottom: 24px; }
+  .dex-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .dex-tabs .btn { margin-top: 0; padding: 10px 26px; font-size: 14px; }
+  .dex-tabs .btn.active { background: linear-gradient(135deg, #ff5566, #ff8a5b); color: #fff; }
+  .dex-list { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 16px; max-height: 56vh; overflow-y: auto; text-align: left; }
+  .dex-entry { display: flex; gap: 12px; align-items: flex-start; background: rgba(255,255,255,0.05);
+    padding: 10px 12px; border-radius: 12px; }
+  .dex-entry svg { flex-shrink: 0; margin-top: 1px; }
+  .dex-name { font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+  .dex-desc { font-size: 11.5px; color: #9aa4b2; line-height: 1.55; }
+
+  .ach-block { margin-bottom: 4px; }
+  .ach-title { font-size: 12.5px; font-weight: 700; color: #fff; margin-bottom: 6px; display:flex; align-items:center; gap:8px; }
+  .ach-row { font-size: 11.5px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.045); margin-bottom: 6px; }
+  .ach-row.done { color: #7cff6b; }
+  .ach-row.current { color: #ffd166; }
+  .ach-row.locked { color: #5b6472; }
+  .ach-bar { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .ach-bar-fill { height: 100%; background: #ffd166; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="lives">♥ ♥ ♥</div>
+  <div id="wave">WAVE 1</div>
+  <div id="score">SCORE 0</div>
+</div>
+<div id="buffs"></div>
+<button id="pauseBtn" class="hidden">⏸</button>
+<div id="gyroToast" class="hidden" style="position:fixed; left:16px; right:16px; bottom:calc(20px + env(safe-area-inset-bottom,0px)); z-index:6; background:rgba(20,20,28,0.9); color:#ffb703; font-size:12px; padding:10px 14px; border-radius:12px; line-height:1.5;"></div>
+
+<div id="joystickBase" class="hidden" style="position:fixed; left:50%; bottom:calc(28px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); width:112px; height:112px; border-radius:50%; background:rgba(255,255,255,0.07); border:2px solid rgba(255,255,255,0.22); z-index:6; pointer-events:none;">
+  <div id="joystickKnob" style="position:absolute; left:50%; top:50%; width:48px; height:48px; margin-left:-24px; margin-top:-24px; border-radius:50%; background:rgba(255,85,102,0.55); border:2px solid rgba(255,255,255,0.6); pointer-events:none;"></div>
+</div>
+
+<button id="tutorialExitBtn" class="hidden" style="position:fixed; top:calc(10px + env(safe-area-inset-top,0px)); right:14px; z-index:9; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,0.14); color:#fff; font-size:16px;">✕</button>
+
+<div id="tutorialSpotlight" class="hidden" style="position:fixed; inset:0; z-index:7; pointer-events:none;"></div>
+
+<div id="tutorialPanel" class="hidden" style="position:fixed; left:16px; right:16px; bottom:calc(20px + env(safe-area-inset-bottom,0px)); z-index:8; background:rgba(14,16,24,0.95); border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+  <div id="tutorialText" style="font-size:13.5px; line-height:1.65; color:#fff; margin-bottom:12px;"></div>
+  <div id="tutorialChoices" class="hidden" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+    <button class="btn secondary" id="tutorialGyroChoice" style="margin-top:0; padding:10px 4px; font-size:12.5px;">자이로</button>
+    <button class="btn secondary" id="tutorialTouchChoice" style="margin-top:0; padding:10px 4px; font-size:12.5px;">터치</button>
+    <button class="btn secondary" id="tutorialJoystickChoice" style="margin-top:0; padding:10px 4px; font-size:12.5px;">조이스틱</button>
+    <button class="btn secondary" id="tutorialKeyChoice" style="margin-top:0; padding:10px 4px; font-size:12.5px;">방향키(PC)</button>
+  </div>
+  <button class="btn ghost hidden" id="tutorialCalibrateBtn" style="margin-top:0; margin-bottom:10px; padding:8px 4px; font-size:12px;">🎯 자이로 영점 조절 (지금 자세를 정지 상태로)</button>
+  <button class="btn" id="tutorialNextBtn" style="margin-top:0; width:100%; padding:12px; font-size:15px;">다음</button>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div id="devModeLabel" class="hidden" style="position:absolute; top:6px; left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
+  <h1>🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v6.8</span></h1>
+  <p id="bestScoreLine" style="font-size:14px; color:#ffd166; font-weight:700; margin: 0 0 6px;">최고 점수: 0</p>
+  <p>휴대폰을 기울여서 빨간 점을 움직이세요.<br>웨이브가 지날수록 적이 강해집니다. 아이템을 먹고 살아남으세요!</p>
+
+  <svg viewBox="0 0 380 230" width="100%" style="max-width:340px; margin: 6px 0 14px; display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="heroGlow" cx="50%" cy="85%" r="55%">
+        <stop offset="0%" stop-color="#ff5566" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#ff5566" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="farBlur"><feGaussianBlur stdDeviation="1.1"/></filter>
+      <filter id="trailBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3.2"/></filter>
+    </defs>
+
+    <!-- speed lines converging toward a vanishing point, for a rushing/perspective feel -->
+    <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1.4">
+      <line x1="192" y1="6" x2="4" y2="230"/>
+      <line x1="192" y1="6" x2="58" y2="230"/>
+      <line x1="192" y1="6" x2="126" y2="230"/>
+      <line x1="192" y1="6" x2="258" y2="230"/>
+      <line x1="192" y1="6" x2="326" y2="230"/>
+      <line x1="192" y1="6" x2="376" y2="230"/>
+    </g>
+
+    <!-- distant enemies: small, soft-focus, rushing in with a proper afterimage trail
+         (a soft blurred streak + fading echo circles, not just a stroked line) -->
+    <g filter="url(#farBlur)" opacity="0.6">
+      <ellipse cx="84" cy="25" rx="16" ry="4.5" fill="#ff5566" opacity="0.28" filter="url(#trailBlur)" transform="rotate(-122 84 25)"/>
+      <circle cx="79" cy="17" r="2.4" fill="#ff5566" opacity="0.16"/>
+      <circle cx="83" cy="24" r="3.6" fill="#ff5566" opacity="0.3"/>
+      <circle cx="88" cy="31" r="5" fill="#ff5566" opacity="0.5"/>
+      <circle cx="92" cy="38" r="7" fill="#ff5566"/><circle cx="92" cy="38" r="2.3" fill="#1a0a0a"/>
+
+      <ellipse cx="280" cy="19" rx="16" ry="4.5" fill="#ff5566" opacity="0.28" filter="url(#trailBlur)" transform="rotate(-58 280 19)"/>
+      <circle cx="286" cy="12" r="2.5" fill="#ff5566" opacity="0.16"/>
+      <circle cx="281" cy="19" r="3.7" fill="#ff5566" opacity="0.3"/>
+      <circle cx="275" cy="27" r="5.2" fill="#ff5566" opacity="0.5"/>
+      <circle cx="270" cy="34" r="7.5" fill="#ff5566"/><circle cx="270" cy="34" r="2.4" fill="#1a0a0a"/>
+
+      <ellipse cx="147" cy="38" rx="18" ry="5" fill="#ff5566" opacity="0.28" filter="url(#trailBlur)" transform="rotate(-131 147 38)"/>
+      <circle cx="141" cy="29" r="3" fill="#ff5566" opacity="0.16"/>
+      <circle cx="146" cy="38" r="4.4" fill="#ff5566" opacity="0.3"/>
+      <circle cx="151" cy="47" r="6.2" fill="#ff5566" opacity="0.5"/>
+      <circle cx="154" cy="54" r="9" fill="#ff5566"/><circle cx="154" cy="54" r="3" fill="#1a0a0a"/>
+    </g>
+
+    <!-- mid-ground enemies, larger, closing in -->
+    <g>
+      <ellipse cx="46" cy="94" rx="30" ry="8.5" fill="#ff5566" opacity="0.3" filter="url(#trailBlur)" transform="rotate(-128 46 94)"/>
+      <circle cx="33" cy="79" r="5.5" fill="#ff5566" opacity="0.18"/>
+      <circle cx="45" cy="93" r="8.5" fill="#ff5566" opacity="0.32"/>
+      <circle cx="56" cy="107" r="12.5" fill="#ff5566" opacity="0.55"/>
+      <circle cx="65" cy="120" r="18" fill="#ff5566" stroke="#1c0a0a" stroke-width="2"/><circle cx="65" cy="120" r="6" fill="#1a0a0a"/>
+
+      <ellipse cx="336" cy="84" rx="32" ry="9" fill="#ff5566" opacity="0.3" filter="url(#trailBlur)" transform="rotate(-54 336 84)"/>
+      <circle cx="351" cy="68" r="6" fill="#ff5566" opacity="0.18"/>
+      <circle cx="338" cy="83" r="9.2" fill="#ff5566" opacity="0.32"/>
+      <circle cx="326" cy="98" r="13.6" fill="#ff5566" opacity="0.55"/>
+      <circle cx="316" cy="110" r="20" fill="#ff5566" stroke="#1c0a0a" stroke-width="2"/><circle cx="316" cy="110" r="6.5" fill="#1a0a0a"/>
+    </g>
+
+    <!-- closest enemy - largest, dramatically near the player, biggest afterimage -->
+    <g>
+      <ellipse cx="264" cy="132" rx="42" ry="12" fill="#ff5566" opacity="0.32" filter="url(#trailBlur)" transform="rotate(-49 264 132)"/>
+      <circle cx="282" cy="112" r="8.5" fill="#ff5566" opacity="0.2"/>
+      <circle cx="267" cy="130" r="13" fill="#ff5566" opacity="0.35"/>
+      <circle cx="252" cy="147" r="19" fill="#ff5566" opacity="0.58"/>
+      <circle cx="240" cy="160" r="28" fill="#ff5566" stroke="#1c0a0a" stroke-width="2.5"/>
+      <circle cx="240" cy="160" r="9" fill="#1a0a0a"/>
+    </g>
+
+    <!-- player: glow, motion trail, blade orbit, invincible ring, body -->
+    <circle cx="148" cy="196" r="62" fill="url(#heroGlow)"/>
+    <circle cx="148" cy="216" r="14" fill="#ff5566" opacity="0.15"/>
+    <circle cx="148" cy="208" r="18" fill="#ff5566" opacity="0.25"/>
+    <ellipse cx="148" cy="196" rx="54" ry="21" fill="none" stroke="#ffd60a" stroke-width="3" opacity="0.75"/>
+    <ellipse cx="148" cy="196" rx="54" ry="21" fill="none" stroke="#ffd60a" stroke-width="1" opacity="0.35" transform="rotate(9 148 196)"/>
+    <g stroke="#4cc9f0" stroke-width="5" stroke-linecap="round">
+      <line x1="148" y1="196" x2="196" y2="174"/>
+      <line x1="148" y1="196" x2="108" y2="163"/>
+      <line x1="148" y1="196" x2="126" y2="230"/>
+    </g>
+    <circle cx="196" cy="174" r="7" fill="#4cc9f0"/>
+    <circle cx="108" cy="163" r="7" fill="#4cc9f0"/>
+    <circle cx="126" cy="230" r="7" fill="#4cc9f0"/>
+    <circle cx="148" cy="196" r="25" fill="#ff2d3e" stroke="#7a0f18" stroke-width="2"/>
+  </svg>
+
+  <button class="btn" id="startBtn">게임 시작</button>
+  <button class="btn secondary" id="tutorialBtn" style="margin-top:10px;">🎓 튜토리얼</button>
+  <button class="btn secondary" id="bossReplayBtn" style="margin-top:10px;">🤖 보스전 회상</button>
+  <div style="display:flex; gap:6px;">
+    <button class="btn ghost" id="openSettingsBtn">⚙ 설정</button>
+    <button class="btn ghost" id="openDexBtn">📖 도감</button>
+    <button class="btn ghost" id="openAchBtn">🏆 업적</button>
+  </div>
+  <p id="gyroStatus" style="margin-top:10px; font-size:12px; color:#6b7280;">센서 상태 확인 전</p>
+</div>
+
+<div class="overlay hidden" id="bossSelectScreen">
+  <h2>🤖 보스전 회상</h2>
+  <p style="font-size:12px; color:#9aa4b2; margin-bottom:14px;">도전할 보스를 선택하세요</p>
+  <div id="bossSelectList" style="width:100%; max-width:340px; display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+    <button id="bossSelectCard1" style="display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:14px; text-align:left;">
+      <svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">
+        <circle cx="36" cy="30" r="26" fill="#3a4150" stroke="#1c2029" stroke-width="3"/>
+        <circle cx="25" cy="34" r="4" fill="#ff5566"/>
+        <circle cx="47" cy="34" r="4" fill="#ff5566"/>
+        <ellipse cx="36" cy="42" rx="9" ry="4" fill="#ff9f1c" opacity="0.6"/>
+        <line x1="12" y1="38" x2="-2" y2="58" stroke="#4b5563" stroke-width="9" stroke-linecap="round"/>
+        <line x1="60" y1="38" x2="80" y2="30" stroke="#7cff6b" stroke-width="9" stroke-linecap="round"/>
+        <circle cx="80" cy="30" r="6" fill="#7cff6b" opacity="0.6"/>
+      </svg>
+      <div style="flex:1;">
+        <div style="font-size:11px; color:#9aa4b2; margin-bottom:2px;">BOSS 1</div>
+        <div style="font-size:16px; font-weight:700; color:#fff;">깡통 로봇</div>
+      </div>
+      <div id="bossSelectLock1" style="font-size:20px;">🔒</div>
+    </button>
+  </div>
+  <button class="btn secondary" id="closeBossSelectBtn">닫기</button>
+</div>
+
+<div class="overlay hidden" id="gameOverScreen">
+  <h1>게임 오버</h1>
+  <p>최종 점수</p>
+  <div id="finalScore">0</div>
+  <button class="btn" id="restartBtn">다시 하기</button>
+  <button class="btn secondary" id="gameOverMenuBtn">메인 메뉴로 돌아가기</button>
+</div>
+
+<div class="overlay hidden" id="pauseScreen">
+  <h2>일시정지</h2>
+  <button class="btn" id="resumeBtn">계속하기</button>
+  <button class="btn secondary" id="pauseRestartBtn">다시하기</button>
+  <button class="btn secondary" id="pauseMenuBtn">메뉴로 돌아가기</button>
+  <button class="btn ghost" id="pauseSettingsBtn">⚙ 설정</button>
+</div>
+
+<div class="overlay hidden" id="settingsScreen">
+  <div id="devModeLabel2" class="hidden" style="position:absolute; top:6px; left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
+  <h2>설정</h2>
+  <button class="btn secondary" id="openControlsSettingsBtn" style="width:260px; padding:14px; font-size:15px;">🕹 조작 설정</button>
+  <button class="btn secondary" id="openSoundSettingsBtn" style="width:260px; padding:14px; font-size:15px;">🔊 사운드 설정</button>
+  <div class="settings-row" style="width:260px;">
+    <label><span>자이로 영점 조절</span></label>
+    <button class="btn secondary" id="calibrateBtn" style="margin-top:0; width:100%; padding:10px; font-size:14px;">지금 자세를 정지 상태로 설정</button>
+    <button class="btn ghost" id="resetCalibrateBtn" style="margin-top:8px; padding:6px 0;">자이로 초기값으로 되돌리기</button>
+    <p id="calibrateStatus" style="font-size:11px; color:#6b7280; margin-top:8px;">버튼을 누르는 순간의 기울기가 새로운 중심점이 됩니다</p>
+  </div>
+  <button class="btn secondary" id="closeSettingsBtn">닫기</button>
+  <button id="devModeEntryBtn" style="position:absolute; bottom:8px; right:10px; background:none; border:none; color:#3a3f4a; font-size:8px; padding:4px 6px;">개발자 모드</button>
+</div>
+
+<div class="hidden" id="devPinScreen" style="position:fixed; inset:0; z-index:15; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center;">
+  <div style="background:#131826; border-radius:16px; padding:24px; width:260px; text-align:center;">
+    <div style="font-size:14px; color:#fff; margin-bottom:14px;">개발자 모드 비밀번호</div>
+    <input type="tel" id="devPinInput" maxlength="4" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:12px; font-size:20px; text-align:center; letter-spacing:8px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#fff; margin-bottom:10px;">
+    <div id="devPinError" style="font-size:11px; color:#ff5566; min-height:14px; margin-bottom:8px;"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" id="devPinCancelBtn" style="margin-top:0; flex:1; padding:10px; font-size:13px;">취소</button>
+      <button class="btn" id="devPinConfirmBtn" style="margin-top:0; flex:1; padding:10px; font-size:13px;">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="settingsControlsScreen">
+  <h2>🕹 조작 설정</h2>
+  <div class="settings-row">
+    <label><span>조작 방식 (폰 전용 · PC는 항상 방향키)</span></label>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" id="modeGyroBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">자이로</button>
+      <button class="btn secondary" id="modeTouchBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">터치</button>
+    </div>
+  </div>
+  <div class="settings-row">
+    <label><span>터치 조작 방식 (터치 모드일 때)</span></label>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" id="joystickOffBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">일반 터치</button>
+      <button class="btn secondary" id="joystickOnBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">조이스틱</button>
+    </div>
+  </div>
+  <div class="settings-row">
+    <label><span>조이스틱 배치</span></label>
+    <button class="btn secondary" id="openJoyPosBtn" style="margin-top:0; width:100%; padding:10px; font-size:14px;">🕹 조이스틱 위치·크기 조정하기</button>
+  </div>
+  <div class="settings-row">
+    <label><span>조이스틱 감도</span><span id="joySensValue">100%</span></label>
+    <input type="range" id="joySensSlider" min="50" max="200" value="100" step="10">
+  </div>
+  <div class="settings-row">
+    <label><span>자이로 감도</span><span id="sensValue">100%</span></label>
+    <input type="range" id="sensSlider" min="40" max="220" value="100" step="10">
+  </div>
+  <button class="btn secondary" id="backFromControlsBtn">← 뒤로</button>
+</div>
+
+<div class="overlay hidden" id="settingsSoundScreen">
+  <h2>🔊 사운드 설정</h2>
+  <div class="settings-row">
+    <label><span>효과음</span></label>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" id="soundOnBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">켜짐</button>
+      <button class="btn secondary" id="soundOffBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">꺼짐</button>
+    </div>
+  </div>
+  <div class="settings-row">
+    <label><span>배경음악</span></label>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" id="musicOnBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">켜짐</button>
+      <button class="btn secondary" id="musicOffBtn" style="margin-top:0; flex:1; padding:10px; font-size:14px;">꺼짐</button>
+    </div>
+  </div>
+  <button class="btn secondary" id="backFromSoundBtn">← 뒤로</button>
+</div>
+
+<div class="hidden" id="joyPosScreen" style="position:fixed; inset:0; z-index:12; background:radial-gradient(circle at 50% 30%, #131826 0%, #05060a 75%); display:flex; flex-direction:column;">
+  <div style="padding: calc(18px + env(safe-area-inset-top,0px)) 24px 6px; text-align:center; color:#fff;">
+    <div style="font-size:16px; font-weight:700; margin-bottom:4px;">조이스틱 위치·크기 조정</div>
+    <div style="font-size:12px; color:#9aa4b2; margin-bottom:6px;">조이스틱을 손가락으로 눌러 원하는 위치로 끌어보세요</div>
+    <div class="settings-row" style="width:280px; margin: 10px auto 0;">
+      <label><span>조이스틱 크기</span><span id="joySizeValue">112px</span></label>
+      <input type="range" id="joySizeSlider" min="80" max="170" value="112" step="6">
+    </div>
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:14px;">
+      <button class="btn secondary" id="resetJoyPosBtn" style="margin-top:0; padding: 9px 20px; font-size: 13px;">초기화</button>
+      <button class="btn" id="doneJoyPosBtn" style="margin-top:0; padding: 9px 26px; font-size: 13px;">완료</button>
+    </div>
+  </div>
+  <div style="flex:1;"></div>
+</div>
+
+<div class="overlay hidden" id="dexScreen">
+  <h2>📖 도감</h2>
+  <div class="dex-tabs">
+    <button class="btn secondary dex-tab" id="dexEnemyTab">적</button>
+    <button class="btn secondary dex-tab" id="dexItemTab">아이템</button>
+  </div>
+
+  <div id="dexEnemyList" class="dex-list">
+    <div class="dex-entry">
+      <svg width="26" height="26" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#ff5566" stroke="rgba(0,0,0,0.55)" stroke-width="2"/><circle cx="10" cy="10" r="3" fill="rgba(10,5,10,0.85)"/></svg>
+      <div><div class="dex-name">추적자</div><div class="dex-desc">가장 기본적인 적. 체력 1로 한 방에 처치되며, 항상 플레이어를 향해 일직선으로 다가옵니다. 웨이브 1부터 등장.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="26" height="26" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ff8fa3" stroke="rgba(0,0,0,0.55)" stroke-width="1.5"/><circle cx="10" cy="10" r="2.4" fill="rgba(10,5,10,0.85)"/></svg>
+      <div><div class="dex-name">스피더</div><div class="dex-desc">작고 빠른 적. 체력 1. 평소엔 보통 속도지만 1.2~2초마다 플레이어 방향으로 짧게 돌진(대시)하며 순간적으로 속도가 2배 이상 빨라집니다. 웨이브 2부터 등장.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="30" height="30" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="#b91c3c" stroke="rgba(0,0,0,0.55)" stroke-width="2"/><circle cx="13" cy="13" r="4" fill="rgba(10,5,10,0.85)"/></svg>
+      <div><div class="dex-name">탱커</div><div class="dex-desc">몸집이 크고 체력 3으로 여러 번 공격해야 처치할 수 있습니다. 평소엔 느리지만 체력이 1 남으면 "분노" 상태가 되어 속도가 1.6배 빨라지고 붉게 빛납니다. 웨이브 3부터 등장.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="26" height="26" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#9b5de5" stroke="rgba(0,0,0,0.55)" stroke-width="2"/><circle cx="10" cy="10" r="3" fill="rgba(10,5,10,0.85)"/></svg>
+      <div><div class="dex-name">방랑자</div><div class="dex-desc">체력 2. 지그재그로 흔들리며 접근해 예측하기 어렵고, 플레이어와 멀리 떨어져 있으면 주기적으로 근처로 순간이동해 기습합니다. 웨이브 4부터 등장.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#ff9f1c" stroke="rgba(0,0,0,0.55)" stroke-width="2"/><circle cx="12" cy="12" r="3.6" fill="rgba(10,5,10,0.85)"/></svg>
+      <div><div class="dex-name">소환자</div><div class="dex-desc">체력 4로 가장 단단한 적. 느리게 움직이지만 몇 초마다 주변에 약한 미니언(추적자)을 계속 소환합니다. 빨리 처치하지 않으면 적 숫자가 눈덩이처럼 불어납니다. 웨이브 6부터 등장.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="#3a4150" stroke="rgba(0,0,0,0.6)" stroke-width="2"/><circle cx="8" cy="15" r="2.2" fill="#ff5566"/><circle cx="18" cy="15" r="2.2" fill="#ff5566"/></svg>
+      <div><div class="dex-name">거대 로봇 (보스)</div><div class="dex-desc">웨이브 8에 단독으로 등장하는 보스. 머리 일부만 화면 위쪽에 보이고 기계 팔로 공격합니다. 페이즈 1에서는 레이저·드릴 돌진·슬램·미사일 4가지 패턴을, 체력이 절반 이하가 되면 페이즈 2로 전환되어 무적 기믹을 포함한 강화 패턴 3종을 주로 사용합니다. 칼날·구슬·폭발/화염 구역이 닿으면 피해를 줄 수 있고, 처치하면 웨이브 9부터 서바이벌이 계속됩니다.</div></div>
+    </div>
+  </div>
+
+  <div id="dexItemList" class="dex-list hidden">
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#ffb703" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><circle cx="9" cy="11.5" r="3.2" fill="none" stroke="#fff" stroke-width="1.6"/><line x1="11" y1="9" x2="13.5" y2="6.5" stroke="#fff" stroke-width="1.6"/><circle cx="14" cy="5.5" r="1" fill="#fff"/></svg>
+      <div><div class="dex-name">폭탄</div><div class="dex-desc">먹은 자리에 반경 90의 폭발 구역이 생겨 2초간 유지됩니다. 그 시간 동안 구역에 닿는 모든 적에게 피해를 줍니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#4cc9f0" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><line x1="10" y1="4" x2="10" y2="13" stroke="#fff" stroke-width="2"/><line x1="6.5" y1="12" x2="13.5" y2="12" stroke="#fff" stroke-width="1.6"/><line x1="10" y1="13" x2="10" y2="16" stroke="#fff" stroke-width="2.4"/></svg>
+      <div><div class="dex-name">칼날</div><div class="dex-desc">6초간 몸 주위를 칼날 3개가 회전하며, 닿는 적을 자동으로 처치합니다. 근접 방어에 유리합니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#7cff6b" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><circle cx="10" cy="10" r="3.6" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="10" cy="10" r="1.1" fill="#fff"/></svg>
+      <div><div class="dex-name">구슬</div><div class="dex-desc">사방으로 튕겨다니는 구슬 5개가 생성됩니다(8초 유지). 벽에 튕기며 돌아다니다 적과 부딪히면 피해를 줍니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#a0e9ff" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><line x1="4.5" y1="10" x2="15.5" y2="10" stroke="#fff" stroke-width="1.4"/><line x1="7.25" y1="5.24" x2="12.75" y2="14.76" stroke="#fff" stroke-width="1.4"/><line x1="12.75" y1="5.24" x2="7.25" y2="14.76" stroke="#fff" stroke-width="1.4"/></svg>
+      <div><div class="dex-name">빙결</div><div class="dex-desc">3.5초간 모든 적의 움직임을 멈춥니다. 얼어있는 적에게는 ❄ 표시가 뜨고, 이 상태에서 부딪히면 체력 손실 없이 적을 처치할 수 있습니다. 종료 3초 전부터 화면 중앙에 카운트다운이 표시됩니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#ffd60a" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><path d="M10 3 L11.8 8.1 L17 8.1 L12.8 11.3 L14.3 16.5 L10 13.2 L5.7 16.5 L7.2 11.3 L3 8.1 L8.2 8.1 Z" fill="#fff"/></svg>
+      <div><div class="dex-name">무적</div><div class="dex-desc">5초간 무적 상태가 되어 적과 부딪혀도 오히려 적이 즉시 처치됩니다. 종료 1.5초 전부터 오라가 빠르게 깜빡여 알려줍니다. 다른 아이템보다 등장 확률이 낮은 희귀 아이템입니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#2ec4b6" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><path d="M10 4 L14.5 6 V10.5 C14.5 14 12.3 16.5 10 17.5 C7.7 16.5 5.5 14 5.5 10.5 V6 Z" fill="none" stroke="#fff" stroke-width="1.6"/></svg>
+      <div><div class="dex-name">보호막</div><div class="dex-desc">1회용 보호막을 생성합니다. 적이 몸에 닿으면 라이프 대신 보호막이 터지며 그 자리에 반경 95의 2초짜리 폭발을 일으킵니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#ff6a00" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><path d="M10 4 C13 8 14 11 12.3 14 C14 13 15 10.5 15 10.5 C16.5 14 14.5 17 10 17 C5.5 17 3.5 14 4.5 10.5 C4.5 10.5 5 12 7 14 C6 11 8 8 10 4 Z" fill="#fff"/></svg>
+      <div><div class="dex-name">화염돌진</div><div class="dex-desc">먹으면 0.45초간 제자리에서 차징한 뒤, 그 순간의 이동 방향으로 강하게 대시합니다. 차징 중과 대시 중 모두 몸에 닿는 적은 즉시 피해를 입고, 대시가 지나간 자리엔 5초간 불꽃이 남아 뒤따라오는 적도 처치합니다.</div></div>
+    </div>
+    <div class="dex-entry">
+      <svg width="24" height="24" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#8b5cf6" stroke="rgba(255,255,255,0.9)" stroke-width="2"/><path d="M11.5 4 L7 11 H10.5 L9 17 L15 9.5 H11.5 Z" fill="#fff"/></svg>
+      <div><div class="dex-name">번개</div><div class="dex-desc">먹는 즉시 발동합니다. 플레이어에서 가장 가까운 적을 시작으로, 최대 4번까지 근처(260 이내)의 다른 적으로 순간 연쇄 이동하며 번개로 타격합니다. 적이 몰려있을수록 더 많은 적을 한 번에 처치할 수 있습니다.</div></div>
+    </div>
+  </div>
+
+  <button class="btn secondary" id="closeDexBtn">닫기</button>
+</div>
+
+<div class="overlay hidden" id="achScreen">
+  <h2>🏆 업적</h2>
+  <div class="dex-tabs">
+    <button class="btn secondary dex-tab" id="achScoreTab">스코어</button>
+    <button class="btn secondary dex-tab" id="achItemTab">아이템</button>
+    <button class="btn secondary dex-tab" id="achBossTab">보스</button>
+  </div>
+  <div id="achScoreList" class="dex-list"></div>
+  <div id="achItemList" class="dex-list hidden"></div>
+  <div id="achBossList" class="dex-list hidden"></div>
+  <button class="btn secondary" id="closeAchBtn">닫기</button>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const hud = document.getElementById('hud');
+  const livesEl = document.getElementById('lives');
+  const waveEl = document.getElementById('wave');
+  const scoreEl = document.getElementById('score');
+  const buffsEl = document.getElementById('buffs');
+  const startScreen = document.getElementById('startScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const pauseScreen = document.getElementById('pauseScreen');
+  const settingsScreen = document.getElementById('settingsScreen');
+  const finalScoreEl = document.getElementById('finalScore');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const gameOverMenuBtn = document.getElementById('gameOverMenuBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resumeBtn = document.getElementById('resumeBtn');
+  const pauseRestartBtn = document.getElementById('pauseRestartBtn');
+  const pauseMenuBtn = document.getElementById('pauseMenuBtn');
+  const openSettingsBtn = document.getElementById('openSettingsBtn');
+  const pauseSettingsBtn = document.getElementById('pauseSettingsBtn');
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const openDexBtn = document.getElementById('openDexBtn');
+  const closeDexBtn = document.getElementById('closeDexBtn');
+  const dexScreen = document.getElementById('dexScreen');
+  const dexEnemyTab = document.getElementById('dexEnemyTab');
+  const dexItemTab = document.getElementById('dexItemTab');
+  const dexEnemyList = document.getElementById('dexEnemyList');
+  const dexItemList = document.getElementById('dexItemList');
+  const sensSlider = document.getElementById('sensSlider');
+  const sensValue = document.getElementById('sensValue');
+  const modeGyroBtn = document.getElementById('modeGyroBtn');
+  const modeTouchBtn = document.getElementById('modeTouchBtn');
+  const gyroStatus = document.getElementById('gyroStatus');
+  let gyroEventCount = 0;
+  let gyroSensitivity = 1.0;
+  let controlMode = 'gyro'; // 'gyro' or 'touch' - phone only, PC always uses keyboard
+  let joystickMode = false; // when controlMode is 'touch': false = drag-anywhere, true = fixed joystick
+  let joystickOffsetX = 0;   // px, horizontal offset from screen center
+  let joystickBottom = 28;   // px, distance from bottom edge (before safe-area inset)
+  let joystickSensitivity = 1.0; // multiplier on stick deflection
+  let joystickSize = 112;    // px, base diameter
+  let settingsReturnTo = 'start';
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  // ---------- Sound (synthesized with Web Audio - no external files) ----------
+  let audioCtx = null;
+  let soundEnabled = true;
+  function ensureAudio(){
+    if (!audioCtx){
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playTone(freq, dur, type, vol, freqEnd, delay){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime + (delay || 0);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1), t0 + dur);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  function playNoise(dur, vol, filterFreq, filterType, delay){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const bufferSize = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = filterType || 'lowpass';
+    filter.frequency.value = filterFreq || 1200;
+    const gain = audioCtx.createGain();
+    const t0 = audioCtx.currentTime + (delay || 0);
+    gain.gain.setValueAtTime(vol, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    noise.start(t0);
+  }
+
+  function sfxClick(){ playTone(760, 0.05, 'square', 0.05, 1000); }
+  let lastSliderSfx = 0;
+  function sfxSlider(){
+    const now = performance.now();
+    if (now - lastSliderSfx < 55) return;
+    lastSliderSfx = now;
+    playTone(420, 0.035, 'square', 0.025);
+  }
+  function sfxPickup(){ playTone(920, 0.1, 'sine', 0.08, 1500); }
+  function sfxHurt(){
+    playTone(150, 0.18, 'sawtooth', 0.13, 55);
+    playNoise(0.12, 0.09, 700);
+  }
+  function sfxEnemyDown(){ playTone(340, 0.07, 'square', 0.045, 130); }
+  function sfxGameOver(){
+    playTone(440, 0.18, 'sawtooth', 0.09, 300, 0);
+    playTone(300, 0.22, 'sawtooth', 0.09, 140, 0.16);
+    playTone(180, 0.3, 'sawtooth', 0.09, 60, 0.34);
+  }
+  function sfxBomb(){
+    // sub-bass thump for weight
+    playTone(70, 0.4, 'sine', 0.17, 28);
+    // sharp initial crack
+    playNoise(0.06, 0.24, 3200, 'lowpass');
+    // bigger rumbling body of the explosion
+    playNoise(0.42, 0.19, 450, 'lowpass', 0.01);
+    // trailing debris/settling crackle
+    playNoise(0.22, 0.08, 900, 'bandpass', 0.12);
+    playNoise(0.18, 0.05, 600, 'bandpass', 0.22);
+  }
+  function sfxBlade(){
+    playTone(1300, 0.14, 'triangle', 0.07, 650);
+    playTone(1700, 0.1, 'triangle', 0.05, 900, 0.03);
+  }
+  function sfxBall(){
+    playTone(520, 0.08, 'square', 0.06, 320);
+    playTone(650, 0.08, 'square', 0.05, 400, 0.07);
+  }
+  function sfxFreeze(){
+    // icy chime
+    playTone(1500, 0.16, 'sine', 0.05, 1900);
+    playTone(1900, 0.12, 'sine', 0.04, 2300, 0.05);
+    // sharp cracking ice - several brief high, brittle noise clicks at random offsets
+    for (let i=0;i<5;i++){
+      playNoise(0.035 + Math.random()*0.03, 0.1, 4200 + Math.random()*2600, 'highpass', 0.02 + i*0.045 + Math.random()*0.025);
+    }
+  }
+  function sfxInvincible(){
+    [740,932,1109,1480].forEach((f,i)=> playTone(f, 0.13, 'sine', 0.06, null, i*0.06));
+  }
+  function sfxShield(){
+    playNoise(0.1, 0.07, 2200, 'highpass');
+    playTone(260, 0.14, 'square', 0.07, 420);
+  }
+  function sfxFire(){
+    // ignition: a bright hiss that blooms into a warm whoosh
+    playNoise(0.09, 0.12, 5500, 'highpass');
+    playNoise(0.32, 0.15, 1400, 'lowpass', 0.03);
+    playTone(200, 0.24, 'sawtooth', 0.09, 65, 0.02);
+    // a couple of early crackle pops as it catches
+    playNoise(0.04, 0.08, rand(2000,3400), 'bandpass', 0.08);
+    playNoise(0.04, 0.07, rand(2000,3400), 'bandpass', 0.15);
+  }
+  function sfxFireCrackle(){
+    // single campfire-style pop, used repeatedly while a flame trail is burning
+    playNoise(0.045 + Math.random()*0.03, 0.06, rand(1700,3400), 'bandpass');
+  }
+  function sfxLightning(){
+    playTone(2400, 0.05, 'square', 0.09, 500);
+    playTone(1200, 0.04, 'square', 0.06, 3200, 0.02);
+    // crackling arc: rapid staticky noise ticks
+    for (let i=0;i<6;i++){
+      playNoise(0.018 + Math.random()*0.015, 0.08, 3200 + Math.random()*3800, 'highpass', i*0.016 + Math.random()*0.008);
+    }
+  }
+  const ITEM_SFX = {
+    bomb: sfxBomb, blade: sfxBlade, ball: sfxBall, freeze: sfxFreeze,
+    invincible: sfxInvincible, shield: sfxShield, fire: sfxFire, lightning: sfxLightning
+  };
+
+  // ---------- Boss-specific sound effects ----------
+  function sfxRingCharge(){ playTone(260, 0.4, 'sawtooth', 0.04, 760); }
+  function sfxRingPop(){ playNoise(0.14, 0.11, 900, 'lowpass'); playTone(150, 0.14, 'square', 0.08, 55); }
+  function sfxPillarHit(){ playTone(500, 0.06, 'square', 0.07, 250); playNoise(0.04, 0.05, 1800, 'bandpass'); }
+  function sfxPillarBreak(){ playNoise(0.28, 0.14, 400, 'lowpass'); playTone(120, 0.22, 'sawtooth', 0.1, 40); }
+  function sfxArmThrust(){ playNoise(0.08, 0.09, 1500, 'lowpass'); playTone(200, 0.1, 'square', 0.07, 90); }
+
+  // ---------- Casual background music (synthesized, arranged as a real short piece) ----------
+  // Instead of looping one riff, each track is built as a sequence of musical
+  // sections (intro -> theme -> variation -> variation -> climax -> ending) so
+  // it plays through like an actual piece before looping back to the intro.
+  let musicEnabled = true;
+  let musicPlaying = false;
+  let musicStepIndex = 0;
+  let musicTimer = null;
+  let musicIntensityTense = false;
+  let currentMusicTrackKey = 'calm';
+
+  // note frequencies (Hz)
+  const N = { G2:98.00, Bb2:116.54, C3:130.81, D3:146.83, E3:164.81, F3:174.61, G3:196.00, Ab3:207.65, A3:220.00, B3:246.94,
+              C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00, A4:440.00 };
+  const CH = {
+    C:  [N.C4,N.E4,N.G4], G: [N.G3,N.B3,N.D4], Am: [N.A3,N.C4,N.E4], F: [N.F3,N.A3,N.C4],
+    E:  [N.E3,N.Ab3,N.B3], // dominant of A minor - raised 3rd for tension
+    Dm: [N.D3,N.F3,N.A3], Bb: [N.Bb2,N.D3,N.F3], Cm: [N.C3,N.E3,N.G3], Gm: [N.G2,N.Bb2,N.D3]
+  };
+
+  // Flattens a list of {chords, chordTicks, arpEvery, arpPattern, kickEvery, dualArp,
+  // padVol, arpVol, padWave, arpWave, arpOctave, transposeMul} sections into one
+  // long array of per-tick playback instructions.
+  function buildTrack(sections){
+    const steps = [];
+    let globalTick = 0;
+    sections.forEach(sec=>{
+      let arpCounter = 0;
+      sec.chords.forEach(chordName=>{
+        const mul = sec.transposeMul || 1;
+        const chord = CH[chordName].map(f => f * mul);
+        for (let t=0; t<sec.chordTicks; t++){
+          const step = {
+            chord, isChordStart: t === 0, holdTicks: sec.chordTicks,
+            kick: sec.kickEvery ? (globalTick % sec.kickEvery === 0) : false,
+            bass: sec.bassEvery ? (globalTick % sec.bassEvery === 0) : false,
+            snare: sec.snareEvery ? ((globalTick + (sec.snareOffset||0)) % sec.snareEvery === 0) : false,
+            hihat: sec.hihatEvery ? (globalTick % sec.hihatEvery === 0) : false,
+            padVol: sec.padVol, arpVol: sec.arpVol, padWave: sec.padWave, arpWave: sec.arpWave,
+            dualArp: !!sec.dualArp, arpOctave: sec.arpOctave || 2
+          };
+          if (t % sec.arpEvery === 0){
+            step.arpIdx = sec.arpPattern[arpCounter % sec.arpPattern.length];
+            arpCounter++;
+          }
+          steps.push(step);
+          globalTick++;
+        }
+      });
+    });
+    return steps;
+  }
+
+  const CALM_SECTIONS = [
+    // intro - sparse, mellow, sets the key
+    { chords:['Am','F'], chordTicks:8, arpEvery:4, arpPattern:[0], kickEvery:0,
+      padVol:0.020, arpVol:0.028, padWave:'sine', arpWave:'sine', arpOctave:1 },
+    // theme - the main hook, played through twice
+    { chords:['C','G','Am','F','C','G','Am','F'], chordTicks:4, arpEvery:1, arpPattern:[0,1,2,1], kickEvery:4,
+      padVol:0.026, arpVol:0.040, padWave:'triangle', arpWave:'sine', arpOctave:2 },
+    // variation 1 - same key, reordered/relative-minor-led, different melodic contour
+    { chords:['Am','F','C','G','Am','F','C','G'], chordTicks:4, arpEvery:1, arpPattern:[2,1,0,1], kickEvery:4,
+      padVol:0.026, arpVol:0.042, padWave:'triangle', arpWave:'triangle', arpOctave:2 },
+    // variation 2 - busier, a second harmony note layered under the melody
+    { chords:['F','C','G','Am','F','C','G','Am'], chordTicks:4, arpEvery:1, arpPattern:[0,2,1,2], kickEvery:2,
+      padVol:0.026, arpVol:0.040, padWave:'triangle', arpWave:'sine', arpOctave:2, dualArp:true },
+    // climax - fuller/louder texture, but stays in the same key as the ending so the
+    // hand-off into the ending resolves cleanly instead of clashing
+    { chords:['C','G','Am','F','C','G','Am','F'], chordTicks:4, arpEvery:1, arpPattern:[0,1,2,1], kickEvery:2,
+      padVol:0.032, arpVol:0.050, padWave:'triangle', arpWave:'sine', arpOctave:2, dualArp:true },
+    // ending - resolves back down, tapers off before the loop restarts
+    { chords:['F','G','C'], chordTicks:8, arpEvery:4, arpPattern:[0], kickEvery:0,
+      padVol:0.022, arpVol:0.026, padWave:'sine', arpWave:'sine', arpOctave:1 }
+  ];
+
+  // Tense track redesigned for suspense rather than speed - slower harmonic rhythm,
+  // sparse motifs, a slow pulse instead of a rapid kick, softer arp timbre. Bass and
+  // drums layer in gradually after the intro, building toward the climax.
+  const TENSE_SECTIONS = [
+    // intro - a long low drone on the tonic, one distant pulse
+    { chords:['Am'], chordTicks:12, arpEvery:6, arpPattern:[0], kickEvery:12,
+      padVol:0.020, arpVol:0.020, padWave:'sawtooth', arpWave:'triangle', arpOctave:1 },
+    // theme - the core idea of the whole piece: a simple Am <-> E oscillation
+    // (tonic vs. dominant), just root notes, nothing fancy yet. Bass enters here.
+    { chords:['Am','E','Am','E'], chordTicks:6, arpEvery:3, arpPattern:[0], kickEvery:6,
+      padVol:0.022, arpVol:0.024, padWave:'sawtooth', arpWave:'triangle', arpOctave:1,
+      bassEvery:6 },
+    // variation 1 - same oscillation, F introduced once as a passing color chord;
+    // melody adds the third for slight motion. Bass moves faster, snare enters.
+    { chords:['Am','E','Am','F'], chordTicks:6, arpEvery:3, arpPattern:[0,1], kickEvery:6,
+      padVol:0.023, arpVol:0.026, padWave:'sawtooth', arpWave:'triangle', arpOctave:1,
+      bassEvery:3, snareEvery:6, snareOffset:3 },
+    // variation 2 - F now leads in, melody uses the safe root/fifth interval. Hi-hat enters.
+    { chords:['F','Am','E','Am'], chordTicks:6, arpEvery:3, arpPattern:[0,2], kickEvery:3,
+      padVol:0.023, arpVol:0.027, padWave:'sawtooth', arpWave:'triangle', arpOctave:1,
+      bassEvery:3, snareEvery:6, snareOffset:3, hihatEvery:3 },
+    // variation 3 - a gentle step up (not a second big jump), melody now runs through
+    // all three chord tones once, still simple and ascending
+    { chords:['Am','E','F','E'], chordTicks:5, arpEvery:2, arpPattern:[0,1,2], kickEvery:3,
+      padVol:0.024, arpVol:0.028, padWave:'sawtooth', arpWave:'triangle', arpOctave:1,
+      bassEvery:3, snareEvery:5, snareOffset:2, hihatEvery:2 },
+    // climax - strips back down to the pure Am <-> E idea from the theme (the clearest
+    // statement of the core tension), but full band, louder, a register higher
+    { chords:['Am','E','Am','E'], chordTicks:4, arpEvery:2, arpPattern:[0,1,2], kickEvery:2,
+      padVol:0.030, arpVol:0.036, padWave:'sawtooth', arpWave:'triangle', arpOctave:2, dualArp:true,
+      bassEvery:2, snareEvery:4, snareOffset:2, hihatEvery:1 },
+    // ending - rhythm section drops out, settles but stays unresolved before looping
+    { chords:['E','Am'], chordTicks:10, arpEvery:5, arpPattern:[0], kickEvery:10,
+      padVol:0.020, arpVol:0.022, padWave:'sawtooth', arpWave:'triangle', arpOctave:1,
+      bassEvery:10 }
+  ];
+
+  // giant robot boss theme - heavier, mechanical, D minor, driving kick+bass+metallic clang
+  const BOSS_SECTIONS = [
+    { chords:['Dm','Bb','Cm','Dm','Dm','Bb','Cm','Dm'], chordTicks:4, arpEvery:1, arpPattern:[0,1,2,1], kickEvery:2,
+      padVol:0.024, arpVol:0.032, padWave:'sawtooth', arpWave:'square', arpOctave:2,
+      bassEvery:2, snareEvery:4, snareOffset:2, hihatEvery:1 },
+    { chords:['Gm','Cm','Bb','Dm','Gm','Cm','Bb','Dm'], chordTicks:4, arpEvery:1, arpPattern:[0,2,1,2], kickEvery:1,
+      padVol:0.028, arpVol:0.036, padWave:'sawtooth', arpWave:'square', arpOctave:2, dualArp:true,
+      bassEvery:1, snareEvery:4, snareOffset:2, hihatEvery:1 }
+  ];
+
+  const MUSIC_TRACKS = {
+    calm:  { steps: buildTrack(CALM_SECTIONS),  tickDur: 155 },
+    tense: { steps: buildTrack(TENSE_SECTIONS), tickDur: 148 },
+    boss:  { steps: buildTrack(BOSS_SECTIONS),  tickDur: 145, isBoss: true }
+  };
+
+  // Short "wild encounter"-style jingle for the boss's entrance
+  function playBossIntroJingle(){
+    const trill = [880, 659.25, 880, 659.25, 880, 659.25, 880, 1046.5];
+    trill.forEach((f,i)=> playTone(f, 0.085, 'square', 0.09, null, i*0.085));
+    const t0 = trill.length * 0.085 + 0.05;
+    [220, 329.63, 440, 554.37].forEach(f => playTone(f, 0.7, 'sawtooth', 0.075, null, t0));
+    playNoise(0.5, 0.06, 2000, 'lowpass', t0);
+  }
+
+  function scheduleMusicStep(){
+    if (!musicPlaying) return;
+    const track = MUSIC_TRACKS[currentMusicTrackKey];
+    if (musicEnabled){
+      ensureAudio();
+      if (audioCtx){
+        const step = track.steps[musicStepIndex % track.steps.length];
+        if (step.isChordStart){
+          const holdDur = track.tickDur/1000 * step.holdTicks * 1.05;
+          step.chord.forEach(f => playTone(f, holdDur, step.padWave, step.padVol));
+          if (track.isBoss) playNoise(0.08, 0.05, 1800, 'bandpass'); // metallic clang
+        }
+        if (step.kick) playTone(88, 0.2, 'sine', 0.05, 40);
+        if (step.bass) playTone(step.chord[0]/2, 0.34, 'triangle', 0.05);
+        if (step.snare){
+          playNoise(0.12, 0.09, 2200, 'bandpass');
+          playTone(190, 0.08, 'triangle', 0.05, 90);
+        }
+        if (step.hihat) playNoise(0.035, 0.025, 7000, 'highpass');
+        if (step.arpIdx !== undefined){
+          const freq = step.chord[step.arpIdx % step.chord.length] * step.arpOctave;
+          playTone(freq, track.tickDur/1000*0.8, step.arpWave, step.arpVol);
+          if (step.dualArp){
+            const freq2 = step.chord[(step.arpIdx+1) % step.chord.length] * step.arpOctave;
+            playTone(freq2, track.tickDur/1000*0.7, step.arpWave, step.arpVol*0.6, null, 0.02);
+          }
+        }
+      }
+    }
+    musicStepIndex++;
+    musicTimer = setTimeout(scheduleMusicStep, track.tickDur);
+  }
+  function setMusicIntensity(tense){
+    if (musicIntensityTense === tense) return;
+    musicIntensityTense = tense;
+    currentMusicTrackKey = tense ? 'tense' : 'calm';
+    musicStepIndex = 0; // clean restart into the new track/tempo
+  }
+  function startMusic(){
+    if (musicPlaying) return;
+    musicPlaying = true;
+    musicStepIndex = 0;
+    musicIntensityTense = false;
+    currentMusicTrackKey = 'calm';
+    ensureAudio();
+    scheduleMusicStep();
+  }
+  function stopMusic(){
+    musicPlaying = false;
+    if (musicTimer){ clearTimeout(musicTimer); musicTimer = null; }
+  }
+  function startBossMusic(){
+    stopMusic();
+    musicPlaying = true;
+    musicStepIndex = 0;
+    currentMusicTrackKey = 'boss';
+    ensureAudio();
+    scheduleMusicStep();
+  }
+
+  // Play a click sound for any button press, and a soft tick for slider drags -
+  // delegated globally so every current and future control is covered automatically.
+  document.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if (btn) sfxClick();
+  });
+  document.addEventListener('input', e=>{
+    if (e.target.tagName === 'INPUT' && e.target.type === 'range') sfxSlider();
+  });
+
+  // ---------- Enemy types ----------
+  const ENEMY_TYPES = {
+    chaser:   { r: 13, speed: 1.0, hp: 1, color: '#ff5566', minWave: 1, score: 10 },
+    fast:     { r: 9,  speed: 1.6, hp: 1, color: '#ff8fa3', minWave: 2, score: 14 },
+    tank:     { r: 22, speed: 0.5, hp: 3, color: '#b91c3c', minWave: 3, score: 22 },
+    wanderer: { r: 12, speed: 1.2, hp: 2, color: '#9b5de5', minWave: 4, score: 16 },
+    spawner:  { r: 19, speed: 0.55, hp: 4, color: '#ff9f1c', minWave: 6, score: 34 },
+    laserSeg: { r: 11, speed: 0,   hp: 1, color: '#ff3b3b', minWave: 999, score: 0 }
+  };
+  const ITEM_COLORS = {
+    bomb: '#ffb703', blade: '#4cc9f0', ball: '#7cff6b',
+    freeze: '#a0e9ff', invincible: '#ffd60a', shield: '#2ec4b6', fire: '#ff6a00',
+    lightning: '#8b5cf6'
+  };
+  // small icon glyph matching each item's theme, for the achievements list (SVG markup)
+  const ITEM_GLYPHS = {
+    bomb: '<circle cx="9" cy="11.5" r="3.2" fill="none" stroke="#fff" stroke-width="1.6"/><line x1="11" y1="9" x2="13.5" y2="6.5" stroke="#fff" stroke-width="1.6"/><circle cx="14" cy="5.5" r="1" fill="#fff"/>',
+    blade: '<line x1="10" y1="4" x2="10" y2="13" stroke="#fff" stroke-width="2"/><line x1="6.5" y1="12" x2="13.5" y2="12" stroke="#fff" stroke-width="1.6"/><line x1="10" y1="13" x2="10" y2="16" stroke="#fff" stroke-width="2.4"/>',
+    ball: '<circle cx="10" cy="10" r="3.6" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="10" cy="10" r="1.1" fill="#fff"/>',
+    freeze: '<line x1="4.5" y1="10" x2="15.5" y2="10" stroke="#fff" stroke-width="1.4"/><line x1="7.25" y1="5.24" x2="12.75" y2="14.76" stroke="#fff" stroke-width="1.4"/><line x1="12.75" y1="5.24" x2="7.25" y2="14.76" stroke="#fff" stroke-width="1.4"/>',
+    invincible: '<path d="M10 3 L11.8 8.1 L17 8.1 L12.8 11.3 L14.3 16.5 L10 13.2 L5.7 16.5 L7.2 11.3 L3 8.1 L8.2 8.1 Z" fill="#fff"/>',
+    shield: '<path d="M10 4 L14.5 6 V10.5 C14.5 14 12.3 16.5 10 17.5 C7.7 16.5 5.5 14 5.5 10.5 V6 Z" fill="none" stroke="#fff" stroke-width="1.6"/>',
+    fire: '<path d="M10 4 C13 8 14 11 12.3 14 C14 13 15 10.5 15 10.5 C16.5 14 14.5 17 10 17 C5.5 17 3.5 14 4.5 10.5 C4.5 10.5 5 12 7 14 C6 11 8 8 10 4 Z" fill="#fff"/>',
+    lightning: '<path d="M11.5 4 L7 11 H10.5 L9 17 L15 9.5 H11.5 Z" fill="#fff"/>'
+  };
+  const ITEM_WEIGHTS = { bomb:3, blade:3, ball:3, freeze:3, shield:3, fire:3, lightning:3, invincible:1 };
+  const HIT_COOLDOWN = 350;
+
+  // ---------- Achievements / persistent save ----------
+  const SCORE_TIERS = [100, 300, 600, 1000, 1800, 3000, 5000, 8000, 12000, 20000];
+  // Each achievement is tied to what that item actually DOES - kills caused by its
+  // specific effect - not just how many times it was picked up.
+  const ITEM_ACH_DEFS = {
+    bomb:       { name: '폭발광',   desc: '폭탄 폭발로 적 처치',         tiers: [10,30,60,120,250] },
+    blade:      { name: '칼춤꾼',   desc: '회전 칼날로 적 처치',         tiers: [10,30,60,120,250] },
+    ball:       { name: '구슬치기 달인', desc: '튕기는 구슬로 적 처치',   tiers: [10,30,60,120,250] },
+    freeze:     { name: '얼음술사', desc: '얼어붙은 적을 무피해로 처치', tiers: [10,30,60,120,250] },
+    shield:     { name: '방패술사', desc: '보호막 파열로 적 처치',       tiers: [8,20,40,80,150] },
+    fire:       { name: '화염질주', desc: '화염 돌진/흔적으로 적 처치',  tiers: [10,30,60,120,250] },
+    lightning:  { name: '번개술사', desc: '연쇄 번개로 적 처치',         tiers: [10,30,60,120,250] },
+    invincible: { name: '불사신',   desc: '무적 상태에서 적 처치',       tiers: [5,15,30,60,120] }
+  };
+  const COLOR_TO_ITEM = {};
+  Object.keys(ITEM_COLORS).forEach(k=>{ COLOR_TO_ITEM[ITEM_COLORS[k]] = k; });
+  const BOSS_ACH = { name: '로봇 사냥꾼', desc: '거대 로봇 보스 처치', tiers: [1,3,5,10,20] };
+  const SAVE_KEY = 'gyroSurvivalSaveV3';
+  let save = { bestScore: 0, bossKills: 0, bossDefeatedEver: false, itemKills: { bomb:0, blade:0, ball:0, freeze:0, shield:0, fire:0, lightning:0, invincible:0 } };
+  function loadSave(){
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw){
+        const parsed = JSON.parse(raw);
+        save.bestScore = parsed.bestScore || 0;
+        save.bossKills = parsed.bossKills || 0;
+        save.bossDefeatedEver = !!parsed.bossDefeatedEver;
+        save.itemKills = Object.assign(save.itemKills, parsed.itemKills || {});
+      }
+    } catch(e){ /* storage unavailable - progress just won't persist this session */ }
+  }
+  function persistSave(){
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch(e){}
+  }
+  function recordItemKill(type){
+    if (save.itemKills[type] === undefined) return;
+    save.itemKills[type]++;
+    persistSave();
+  }
+  loadSave();
+
+  // ---------- State ----------
+  let running = false;
+  let paused = false;
+  let score = 0;
+  let lives = 3;
+  let invincible = 0;
+  let elapsed = 0;
+
+  const player = { x: 0, y: 0, r: 13, vx: 0, vy: 0 };
+  let enemies = [];
+  let items = [];
+  let balls = [];
+  let particles = [];
+  let zones = []; // persistent damage zones: explosion / shield-burst / fire path
+  let lightningBolts = []; // brief chain-lightning flash visuals
+  let fireCrackleTimer = 0; // schedules periodic campfire-pop sfx while a fire zone burns
+
+  let bladeTimer = 0;
+  const bladeDuration = 6000;
+  const bladeCount = 3;
+  const bladeRadius = 58;
+
+  let freezeTimer = 0;
+  const freezeDuration = 3500;
+
+  let invincibleBuffTimer = 0;
+  const invincibleBuffDuration = 5000;
+
+  let hasShield = false;
+
+  // fire dash state machine: 'idle' -> 'charging' -> 'dashing' -> 'idle'
+  let fireState = 'idle';
+  let fireTimer = 0;
+  const fireChargeDuration = 450;
+  const fireDashDuration = 320;
+  const fireDashDistance = 260;
+  const fireTrailLife = 5000;
+  let fireDir = {x:0, y:-1};
+  let fireDropTimer = 0;
+
+  let wave = 1;
+  const waveDuration = 17000;
+  let waveBannerTimer = 0;
+  let waveBannerText = '';
+
+  let enemySpawnTimer = 0;
+  let itemSpawnTimer = 0;
+  let enemySpawnInterval = 1500;
+  let itemSpawnInterval = 3200;
+
+  // ---------- Boss (wave 8) ----------
+  const BOSS_WAVE = 8;
+  let bossTriggered = false;     // prevents re-triggering within the same run
+  let bossActive = false;
+  let bossPhase = 1;
+  let bossHp = 0, bossMaxHp = 0;
+  let bossX = 0, bossHeadY = -70;
+  const BOSS_R = 130;
+  let bossInvincible = false;
+  let bossHitCooldown = 0;
+  let bossState = 'idle';        // 'intro' | 'cooldown' | 'charging' | 'executing'
+  let bossStateTimer = 0;
+  let bossPattern = null;
+  let bossChargeVisual = 0;      // 0..1 charge progress for mouth glow
+  let bossPhaseBannerTimer = 0;
+  let bossPhaseBannerText = '';
+  let bossDefeatTimer = 0;
+  let bossArmSide = 1;           // which arm is active, purely visual
+  let bossTelegraphs = [];       // {kind:'line'|'circle', ...} warning shapes
+  let bossHazards = [];          // active damaging hazards not tied to `enemies`
+  let bossDrillQueue = 0;        // remaining sequential drill hits
+  let bossDrillIsDual = false;
+  let bossVulnerable = false;    // can only be damaged during these windows
+  let bossPatternsSeen = 0;      // how many attacks it has executed this fight
+  const BOSS_VULN_THRESHOLD = 2; // must witness this many patterns before it opens up
+  let bossReplayMode = false;    // true when fighting the boss via menu replay, not a real run
+
+  // phase 1 gimmick: dodge 3 arm-thrust attacks in a row to exhaust the arm
+  let bossArmThrustDodges = 0;
+  let bossArmThrustTarget = {x:0, y:0};
+  let bossArmThrustSide = 1;
+  let bossExhausted = false;
+  let bossExhaustedArmSide = 1;
+  let bossArmHitsTaken = 0;
+  const BOSS_ARM_HITS_TO_RECOVER = 4;
+
+  // phase 2 gimmick: 4 pillars periodically rise - destroy them for damage
+  let bossPillars = [];
+  let bossPillarActive = false;
+  let bossPatternSincePillar = 0;
+
+  // ---------- Gyro ----------
+  let tiltX = 0, tiltY = 0;
+  let baseBeta = null, baseGamma = null;
+  let initialBeta = null, initialGamma = null;
+  let lastRawBeta = null, lastRawGamma = null;
+  let usingGyro = false;
+
+  function handleOrientation(e){
+    if (e.beta === null || e.gamma === null) return;
+    lastRawBeta = e.beta; lastRawGamma = e.gamma;
+    if (controlMode !== 'gyro') return; // touch mode chosen - ignore sensor input entirely
+    if (baseBeta === null){
+      baseBeta = e.beta; baseGamma = e.gamma;
+      initialBeta = e.beta; initialGamma = e.gamma;
+    }
+    let dGamma = e.gamma - baseGamma;
+    let dBeta = e.beta - baseBeta;
+    dGamma = clamp(dGamma, -45, 45);
+    dBeta = clamp(dBeta, -45, 45);
+    tiltX = dGamma / 45;
+    tiltY = dBeta / 45;
+    usingGyro = true;
+    gyroEventCount++;
+  }
+
+  function pointerToTilt(clientX, clientY){
+    // direction relative to the player's CURRENT position, not screen center -
+    // touching near the player gives a gentle nudge, touching further away
+    // (up to ~90px) gives full speed in that direction, like a floating joystick
+    const dx = clientX - player.x;
+    const dy = clientY - player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 4){ tiltX = 0; tiltY = 0; return; }
+    const strength = clamp(dist / 90, 0, 1);
+    tiltX = (dx / dist) * strength;
+    tiltY = (dy / dist) * strength;
+  }
+
+  // Fixed on-screen joystick (bottom-center) - alternative to the drag-anywhere touch mode
+  const joystickBase = document.getElementById('joystickBase');
+  const joystickKnob = document.getElementById('joystickKnob');
+  let joystickMaxRadius = 50;
+  let joystickCatchRadius = 95; // touches starting within this radius of the base grab the stick
+  let joystickActive = false;
+  let joystickCenter = {x:0, y:0};
+  let joystickTouchId = null;
+  function updateJoystickCenter(){
+    const rect = joystickBase.getBoundingClientRect();
+    joystickCenter = {x: rect.left + rect.width/2, y: rect.top + rect.height/2};
+  }
+  window.addEventListener('resize', updateJoystickCenter);
+  function applyJoystickPosition(){
+    joystickBase.style.bottom = 'calc(' + joystickBottom + 'px + env(safe-area-inset-bottom,0px))';
+    joystickBase.style.transform = 'translateX(calc(-50% + ' + joystickOffsetX + 'px))';
+    updateJoystickCenter();
+  }
+  // While the tutorial text panel is open at the bottom, temporarily lift the
+  // joystick above it so the panel never covers it - doesn't touch the user's
+  // saved position/size settings.
+  function setJoystickLiftedForPanel(lifted){
+    if (lifted){
+      // measure the panel's real height (it changes size depending on which
+      // buttons are visible) so the joystick always clears it with margin
+      const panelHeight = tutorialPanel.offsetHeight || 260;
+      joystickBase.style.bottom = 'calc(' + (joystickBottom + panelHeight + 30) + 'px + env(safe-area-inset-bottom,0px))';
+      updateJoystickCenter();
+    } else {
+      applyJoystickPosition();
+    }
+  }
+  function applyJoystickSize(){
+    joystickBase.style.width = joystickSize + 'px';
+    joystickBase.style.height = joystickSize + 'px';
+    joystickMaxRadius = joystickSize/2 - 6;
+    joystickCatchRadius = joystickSize/2 + 40;
+    const knobSize = Math.round(joystickSize * 0.43);
+    joystickKnob.style.width = knobSize + 'px';
+    joystickKnob.style.height = knobSize + 'px';
+    joystickKnob.style.marginLeft = (-knobSize/2) + 'px';
+    joystickKnob.style.marginTop = (-knobSize/2) + 'px';
+    updateJoystickCenter();
+  }
+  function updateJoystickFromTouch(clientX, clientY){
+    const dx = clientX - joystickCenter.x;
+    const dy = clientY - joystickCenter.y;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    const clamped = Math.min(dist, joystickMaxRadius);
+    const angle = Math.atan2(dy, dx);
+    const knobX = Math.cos(angle) * clamped;
+    const knobY = Math.sin(angle) * clamped;
+    joystickKnob.style.transform = 'translate(' + knobX + 'px,' + knobY + 'px)';
+    tiltX = clamp((knobX / joystickMaxRadius) * joystickSensitivity, -1, 1);
+    tiltY = clamp((knobY / joystickMaxRadius) * joystickSensitivity, -1, 1);
+  }
+  function resetJoystickKnob(){
+    joystickKnob.style.transform = 'translate(0px,0px)';
+  }
+
+  canvas.addEventListener('touchstart', e=>{
+    if (usingGyro) return;
+    if (controlMode === 'touch' && joystickMode){
+      const t = e.changedTouches[0];
+      const d = Math.hypot(t.clientX - joystickCenter.x, t.clientY - joystickCenter.y);
+      if (d <= joystickCatchRadius){
+        joystickActive = true;
+        joystickTouchId = t.identifier;
+        updateJoystickFromTouch(t.clientX, t.clientY);
+      }
+    } else {
+      const t = e.touches[0]; pointerToTilt(t.clientX, t.clientY);
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{
+    if (usingGyro) return;
+    if (controlMode === 'touch' && joystickMode){
+      if (!joystickActive) return;
+      let t = null;
+      for (let i=0;i<e.changedTouches.length;i++){
+        if (e.changedTouches[i].identifier === joystickTouchId){ t = e.changedTouches[i]; break; }
+      }
+      if (t) updateJoystickFromTouch(t.clientX, t.clientY);
+    } else {
+      const t = e.touches[0]; pointerToTilt(t.clientX, t.clientY);
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchend', e=>{
+    if (usingGyro) return;
+    if (controlMode === 'touch' && joystickMode){
+      for (let i=0;i<e.changedTouches.length;i++){
+        if (e.changedTouches[i].identifier === joystickTouchId){
+          joystickActive = false;
+          joystickTouchId = null;
+          tiltX = 0; tiltY = 0;
+          resetJoystickKnob();
+          break;
+        }
+      }
+    } else {
+      tiltX = 0; tiltY = 0;
+    }
+  });
+
+  // Desktop keyboard fallback: arrow keys or WASD
+  const keys = {left:false, right:false, up:false, down:false};
+  function updateKeyTilt(){
+    if (usingGyro) return;
+    let x = 0, y = 0;
+    if (keys.left) x -= 1;
+    if (keys.right) x += 1;
+    if (keys.up) y -= 1;
+    if (keys.down) y += 1;
+    if (x !== 0 || y !== 0){
+      const mag = Math.hypot(x,y);
+      tiltX = x/mag; tiltY = y/mag;
+    } else {
+      tiltX = 0; tiltY = 0;
+    }
+  }
+  function mapKey(key){
+    switch(key){
+      case 'ArrowLeft': case 'a': case 'A': return 'left';
+      case 'ArrowRight': case 'd': case 'D': return 'right';
+      case 'ArrowUp': case 'w': case 'W': return 'up';
+      case 'ArrowDown': case 's': case 'S': return 'down';
+      default: return null;
+    }
+  }
+  window.addEventListener('keydown', e=>{
+    const k = mapKey(e.key);
+    if (!k) return;
+    e.preventDefault();
+    keys[k] = true;
+    updateKeyTilt();
+  });
+  window.addEventListener('keyup', e=>{
+    const k = mapKey(e.key);
+    if (!k) return;
+    e.preventDefault();
+    keys[k] = false;
+    updateKeyTilt();
+  });
+
+  let gyroListenerAttached = false;
+  function requestGyroPermission(){
+    if (typeof DeviceOrientationEvent === 'undefined'){
+      gyroStatus.textContent = '이 브라우저는 자이로 API를 지원하지 않습니다 (터치로 조작하세요)';
+      return;
+    }
+    // Diagnostic info: on Android Chromium browsers (Edge, Chrome), sensor access
+    // requires a secure context (https/localhost) - plain file:// will be silently blocked.
+    const isSecure = window.isSecureContext;
+    const protocol = window.location.protocol;
+    if (!isSecure || protocol === 'file:'){
+      const msg = '이 페이지가 보안 연결(https)이 아니라서(현재: ' + protocol + ') 브라우저가 자이로 센서를 막고 있을 가능성이 높습니다. 파일을 그냥 여는 대신, 간단한 https 호스팅(예: GitHub Pages 등)에 올려서 https 주소로 열어보세요. 그래도 안 되면 브라우저 주소창 옆 정보/자물쇠 아이콘 → 권한 → "동작 센서"가 차단되어 있지 않은지 확인해보세요.';
+      gyroStatus.textContent = msg;
+      gyroStatus.style.color = '#ffb703';
+    }
+    if (typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(state=>{
+        if (state === 'granted'){
+          if (!gyroListenerAttached){
+            window.addEventListener('deviceorientation', handleOrientation);
+            gyroListenerAttached = true;
+          }
+          gyroStatus.textContent = '권한 허용됨 - 센서 신호 대기 중...';
+          gyroStatus.style.color = '';
+          setTimeout(checkGyroActive, 1800);
+        } else {
+          gyroStatus.textContent = '권한이 거부되었습니다 (터치로 조작 가능)';
+        }
+      }).catch(err=>{
+        gyroStatus.textContent = '권한 요청 실패: ' + err.message + ' (터치로 조작하세요)';
+      });
+    } else {
+      if (!gyroListenerAttached){
+        window.addEventListener('deviceorientation', handleOrientation);
+        gyroListenerAttached = true;
+      }
+      if (isSecure && protocol !== 'file:'){
+        gyroStatus.textContent = '센서 신호 대기 중...';
+        gyroStatus.style.color = '';
+      }
+      setTimeout(checkGyroActive, 1800);
+    }
+  }
+
+  function checkGyroActive(){
+    const toast = document.getElementById('gyroToast');
+    if (gyroEventCount === 0){
+      const isSecure = window.isSecureContext;
+      const protocol = window.location.protocol;
+      let msg;
+      if (!isSecure || protocol === 'file:'){
+        msg = '자이로 신호 없음 - 원인: 이 페이지가 https가 아닌 "' + protocol + '"로 열려있어서 센서 권한 자체가 브라우저에 의해 차단됐을 가능성이 높습니다 (안드로이드 크롬/엣지는 file://에서 센서를 지원하지 않아요). https로 호스팅해서 열어보세요. 지금은 화면을 눌러 드래그하면 조작됩니다.';
+      } else {
+        msg = '자이로 신호를 받지 못했습니다. 브라우저 주소창의 정보/자물쇠 아이콘 → 사이트 권한에서 "동작 센서(Motion sensors)"가 차단되어 있지 않은지 확인해보세요. 지금은 화면을 눌러 드래그하면 조작됩니다.';
+      }
+      gyroStatus.textContent = msg;
+      gyroStatus.style.color = '#ffb703';
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(()=>toast.classList.add('hidden'), 8000);
+    } else {
+      gyroStatus.textContent = '';
+      toast.classList.add('hidden');
+    }
+  }
+
+  // ---------- Settings ----------
+  const soundOnBtn = document.getElementById('soundOnBtn');
+  const soundOffBtn = document.getElementById('soundOffBtn');
+  function updateSoundButtons(){
+    const activeGrad = 'linear-gradient(135deg, #ff5566, #ff8a5b)';
+    soundOnBtn.style.background = soundEnabled ? activeGrad : 'rgba(255,255,255,0.1)';
+    soundOnBtn.style.color = soundEnabled ? '#fff' : '#dfe4ea';
+    soundOffBtn.style.background = !soundEnabled ? activeGrad : 'rgba(255,255,255,0.1)';
+    soundOffBtn.style.color = !soundEnabled ? '#fff' : '#dfe4ea';
+  }
+  soundOnBtn.addEventListener('click', ()=>{ soundEnabled = true; ensureAudio(); updateSoundButtons(); });
+  soundOffBtn.addEventListener('click', ()=>{ soundEnabled = false; updateSoundButtons(); });
+  updateSoundButtons();
+
+  const musicOnBtn = document.getElementById('musicOnBtn');
+  const musicOffBtn = document.getElementById('musicOffBtn');
+  function updateMusicButtons(){
+    const activeGrad = 'linear-gradient(135deg, #ff5566, #ff8a5b)';
+    musicOnBtn.style.background = musicEnabled ? activeGrad : 'rgba(255,255,255,0.1)';
+    musicOnBtn.style.color = musicEnabled ? '#fff' : '#dfe4ea';
+    musicOffBtn.style.background = !musicEnabled ? activeGrad : 'rgba(255,255,255,0.1)';
+    musicOffBtn.style.color = !musicEnabled ? '#fff' : '#dfe4ea';
+  }
+  musicOnBtn.addEventListener('click', ()=>{ musicEnabled = true; ensureAudio(); updateMusicButtons(); });
+  musicOffBtn.addEventListener('click', ()=>{ musicEnabled = false; updateMusicButtons(); });
+  updateMusicButtons();
+
+  function updateModeButtons(){
+    const activeGrad = 'linear-gradient(135deg, #ff5566, #ff8a5b)';
+    modeGyroBtn.style.background = controlMode==='gyro' ? activeGrad : 'rgba(255,255,255,0.1)';
+    modeGyroBtn.style.color = controlMode==='gyro' ? '#fff' : '#dfe4ea';
+    modeTouchBtn.style.background = controlMode==='touch' ? activeGrad : 'rgba(255,255,255,0.1)';
+    modeTouchBtn.style.color = controlMode==='touch' ? '#fff' : '#dfe4ea';
+  }
+  modeGyroBtn.addEventListener('click', ()=>{
+    controlMode = 'gyro';
+    baseBeta = null; baseGamma = null; // recalibrate fresh when (re)entering gyro mode
+    gyroEventCount = 0;
+    updateModeButtons();
+    requestGyroPermission();
+    updateJoystickVisibility();
+  });
+  modeTouchBtn.addEventListener('click', ()=>{
+    controlMode = 'touch';
+    usingGyro = false;
+    tiltX = 0; tiltY = 0;
+    updateModeButtons();
+    updateJoystickVisibility();
+  });
+  updateModeButtons();
+
+  const joystickOnBtn = document.getElementById('joystickOnBtn');
+  const joystickOffBtn = document.getElementById('joystickOffBtn');
+  function updateJoystickButtons(){
+    const activeGrad = 'linear-gradient(135deg, #ff5566, #ff8a5b)';
+    joystickOnBtn.style.background = joystickMode ? activeGrad : 'rgba(255,255,255,0.1)';
+    joystickOnBtn.style.color = joystickMode ? '#fff' : '#dfe4ea';
+    joystickOffBtn.style.background = !joystickMode ? activeGrad : 'rgba(255,255,255,0.1)';
+    joystickOffBtn.style.color = !joystickMode ? '#fff' : '#dfe4ea';
+  }
+  function updateJoystickVisibility(){
+    const show = running && !paused && controlMode === 'touch' && joystickMode;
+    joystickBase.classList.toggle('hidden', !show);
+    if (show){
+      updateJoystickCenter();
+    } else {
+      joystickActive = false;
+      joystickTouchId = null;
+      resetJoystickKnob();
+    }
+  }
+  joystickOnBtn.addEventListener('click', ()=>{
+    joystickMode = true;
+    tiltX = 0; tiltY = 0;
+    updateJoystickButtons();
+    updateJoystickVisibility();
+  });
+  joystickOffBtn.addEventListener('click', ()=>{
+    joystickMode = false;
+    tiltX = 0; tiltY = 0;
+    updateJoystickButtons();
+    updateJoystickVisibility();
+  });
+  updateJoystickButtons();
+  applyJoystickPosition();
+  applyJoystickSize();
+
+  const joySensSlider = document.getElementById('joySensSlider');
+  const joySensValue = document.getElementById('joySensValue');
+  joySensSlider.addEventListener('input', ()=>{
+    joystickSensitivity = joySensSlider.value / 100;
+    joySensValue.textContent = joySensSlider.value + '%';
+  });
+
+  // ---------- Joystick position/size drag-configure screen ----------
+  const openJoyPosBtn = document.getElementById('openJoyPosBtn');
+  const doneJoyPosBtn = document.getElementById('doneJoyPosBtn');
+  const joyPosScreen = document.getElementById('joyPosScreen');
+  const joySizeSlider = document.getElementById('joySizeSlider');
+  const joySizeValue = document.getElementById('joySizeValue');
+  let joyConfigOpen = false;
+  let joyDragging = false;
+  let joyDragStart = {x:0, y:0};
+  let joyDragStartOffset = {x:0, bottom:0};
+
+  openJoyPosBtn.addEventListener('click', ()=>{
+    settingsControlsScreen.classList.add('hidden');
+    joyPosScreen.classList.remove('hidden');
+    joyConfigOpen = true;
+    joystickBase.classList.remove('hidden');
+    joystickBase.style.pointerEvents = 'auto';
+    joystickBase.style.zIndex = '13'; // above joyPosScreen's own z-index so it's actually visible
+    applyJoystickPosition();
+    applyJoystickSize();
+  });
+  doneJoyPosBtn.addEventListener('click', ()=>{
+    joyConfigOpen = false;
+    joystickBase.style.pointerEvents = 'none';
+    joystickBase.style.zIndex = '6';
+    if (!(running && !paused && controlMode === 'touch' && joystickMode)){
+      joystickBase.classList.add('hidden');
+    }
+    joyPosScreen.classList.add('hidden');
+    settingsControlsScreen.classList.remove('hidden');
+  });
+  joystickBase.addEventListener('pointerdown', e=>{
+    if (!joyConfigOpen) return;
+    joyDragging = true;
+    joyDragStart = {x: e.clientX, y: e.clientY};
+    joyDragStartOffset = {x: joystickOffsetX, bottom: joystickBottom};
+    if (joystickBase.setPointerCapture) joystickBase.setPointerCapture(e.pointerId);
+  });
+  joystickBase.addEventListener('pointermove', e=>{
+    if (!joyConfigOpen || !joyDragging) return;
+    const dx = e.clientX - joyDragStart.x;
+    const dy = e.clientY - joyDragStart.y;
+    const margin = joystickSize/2 + 20;
+    joystickOffsetX = clamp(joyDragStartOffset.x + dx, -(W/2 - margin), (W/2 - margin));
+    joystickBottom = clamp(joyDragStartOffset.bottom - dy, 10, H - margin - 60);
+    applyJoystickPosition();
+  });
+  joystickBase.addEventListener('pointerup', ()=>{ joyDragging = false; });
+  joystickBase.addEventListener('pointercancel', ()=>{ joyDragging = false; });
+  joySizeSlider.addEventListener('input', ()=>{
+    joystickSize = parseInt(joySizeSlider.value, 10);
+    joySizeValue.textContent = joystickSize + 'px';
+    applyJoystickSize();
+  });
+  const resetJoyPosBtn = document.getElementById('resetJoyPosBtn');
+  resetJoyPosBtn.addEventListener('click', ()=>{
+    joystickOffsetX = 0;
+    joystickBottom = 28;
+    joystickSize = 112;
+    joySizeSlider.value = 112;
+    joySizeValue.textContent = '112px';
+    applyJoystickPosition();
+    applyJoystickSize();
+  });
+
+  sensSlider.addEventListener('input', ()=>{
+    gyroSensitivity = sensSlider.value / 100;
+    sensValue.textContent = sensSlider.value + '%';
+  });
+  openSettingsBtn.addEventListener('click', ()=>{
+    settingsReturnTo = 'start';
+    startScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  });
+  pauseSettingsBtn.addEventListener('click', ()=>{
+    settingsReturnTo = 'pause';
+    pauseScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  });
+  closeSettingsBtn.addEventListener('click', ()=>{
+    settingsScreen.classList.add('hidden');
+    if (settingsReturnTo === 'pause') pauseScreen.classList.remove('hidden');
+    else startScreen.classList.remove('hidden');
+  });
+  const openControlsSettingsBtn = document.getElementById('openControlsSettingsBtn');
+  const openSoundSettingsBtn = document.getElementById('openSoundSettingsBtn');
+  const settingsControlsScreen = document.getElementById('settingsControlsScreen');
+  const settingsSoundScreen = document.getElementById('settingsSoundScreen');
+  const backFromControlsBtn = document.getElementById('backFromControlsBtn');
+  const backFromSoundBtn = document.getElementById('backFromSoundBtn');
+  openControlsSettingsBtn.addEventListener('click', ()=>{
+    settingsScreen.classList.add('hidden');
+    settingsControlsScreen.classList.remove('hidden');
+  });
+  openSoundSettingsBtn.addEventListener('click', ()=>{
+    settingsScreen.classList.add('hidden');
+    settingsSoundScreen.classList.remove('hidden');
+  });
+  backFromControlsBtn.addEventListener('click', ()=>{
+    settingsControlsScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  });
+  backFromSoundBtn.addEventListener('click', ()=>{
+    settingsSoundScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  });
+
+  // ---------- Developer mode ----------
+  let devModeActive = false;
+  const DEV_PIN = '8679';
+  const devModeLabel = document.getElementById('devModeLabel');
+  const devModeLabel2 = document.getElementById('devModeLabel2');
+  const devModeEntryBtn = document.getElementById('devModeEntryBtn');
+  const devPinScreen = document.getElementById('devPinScreen');
+  const devPinInput = document.getElementById('devPinInput');
+  const devPinError = document.getElementById('devPinError');
+  const devPinCancelBtn = document.getElementById('devPinCancelBtn');
+  const devPinConfirmBtn = document.getElementById('devPinConfirmBtn');
+  const bossReplayBtn = document.getElementById('bossReplayBtn');
+  const bossSelectScreen = document.getElementById('bossSelectScreen');
+  const bossSelectCard1 = document.getElementById('bossSelectCard1');
+  const bossSelectLock1 = document.getElementById('bossSelectLock1');
+  const closeBossSelectBtn = document.getElementById('closeBossSelectBtn');
+
+  function isBossReplayUnlocked(){
+    return save.bossDefeatedEver || devModeActive;
+  }
+  function updateBossReplayButton(){
+    bossReplayBtn.textContent = '🤖 보스전 회상';
+    bossReplayBtn.style.opacity = '1';
+    bossSelectCard1.style.opacity = isBossReplayUnlocked() ? '1' : '0.5';
+    bossSelectLock1.textContent = isBossReplayUnlocked() ? '▶' : '🔒';
+  }
+  function updateDevModeUI(){
+    devModeLabel.classList.toggle('hidden', !devModeActive);
+    devModeLabel2.classList.toggle('hidden', !devModeActive);
+    updateBossReplayButton();
+  }
+  devModeEntryBtn.addEventListener('click', ()=>{
+    devPinInput.value = '';
+    devPinError.textContent = '';
+    devPinScreen.classList.remove('hidden');
+    devPinInput.focus();
+  });
+  devPinCancelBtn.addEventListener('click', ()=>{
+    devPinScreen.classList.add('hidden');
+  });
+  devPinConfirmBtn.addEventListener('click', ()=>{
+    if (devPinInput.value === DEV_PIN){
+      devModeActive = true;
+      updateDevModeUI();
+      devPinScreen.classList.add('hidden');
+    } else {
+      devPinError.textContent = '비밀번호가 틀렸습니다';
+      devPinInput.value = '';
+    }
+  });
+  // tapping the small "개발자 모드" label anywhere turns it back off, reverting the
+  // boss-replay lock to its real (earned) state
+  [devModeLabel, devModeLabel2].forEach(el=>{
+    el.style.pointerEvents = 'auto';
+    el.addEventListener('click', ()=>{
+      devModeActive = false;
+      updateDevModeUI();
+    });
+  });
+  bossReplayBtn.addEventListener('click', ()=>{
+    updateBossReplayButton();
+    startScreen.classList.add('hidden');
+    bossSelectScreen.classList.remove('hidden');
+  });
+  closeBossSelectBtn.addEventListener('click', ()=>{
+    bossSelectScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+  });
+  bossSelectCard1.addEventListener('click', ()=>{
+    if (!isBossReplayUnlocked()) return;
+    bossSelectScreen.classList.add('hidden');
+    startBossReplay();
+  });
+  updateBossReplayButton();
+
+  // ---------- Dex (encyclopedia) ----------
+  function setDexTab(tab){
+    const isEnemy = tab === 'enemy';
+    dexEnemyList.classList.toggle('hidden', !isEnemy);
+    dexItemList.classList.toggle('hidden', isEnemy);
+    dexEnemyTab.classList.toggle('active', isEnemy);
+    dexItemTab.classList.toggle('active', !isEnemy);
+  }
+  dexEnemyTab.addEventListener('click', ()=> setDexTab('enemy'));
+  dexItemTab.addEventListener('click', ()=> setDexTab('item'));
+  setDexTab('enemy');
+  openDexBtn.addEventListener('click', ()=>{
+    startScreen.classList.add('hidden');
+    dexScreen.classList.remove('hidden');
+  });
+  closeDexBtn.addEventListener('click', ()=>{
+    dexScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+  });
+
+  // ---------- Achievements ----------
+  const bestScoreLine = document.getElementById('bestScoreLine');
+  const achScreen = document.getElementById('achScreen');
+  const achScoreTab = document.getElementById('achScoreTab');
+  const achItemTab = document.getElementById('achItemTab');
+  const achBossTab = document.getElementById('achBossTab');
+  const achScoreList = document.getElementById('achScoreList');
+  const achItemList = document.getElementById('achItemList');
+  const achBossList = document.getElementById('achBossList');
+  const openAchBtn = document.getElementById('openAchBtn');
+  const closeAchBtn = document.getElementById('closeAchBtn');
+
+  function updateBestScoreDisplay(){
+    bestScoreLine.textContent = '최고 점수: ' + save.bestScore;
+  }
+  updateBestScoreDisplay();
+
+  function renderScoreAchievements(){
+    let html = '<div class="ach-block"><div class="ach-title">🏆 최고 점수: ' + save.bestScore + '점</div>';
+    for (let i=0;i<SCORE_TIERS.length;i++){
+      const target = SCORE_TIERS[i];
+      const unlocked = save.bestScore >= target;
+      const isNext = !unlocked && (i===0 || save.bestScore >= SCORE_TIERS[i-1]);
+      if (unlocked){
+        html += '<div class="ach-row done">✅ 레벨 ' + (i+1) + ' · ' + target + '점 달성</div>';
+      } else if (isNext){
+        const pct = Math.min(100, Math.floor(save.bestScore/target*100));
+        html += '<div class="ach-row current">🔓 레벨 ' + (i+1) + ' · ' + target + '점 달성 (' + save.bestScore + '/' + target + ')'
+          + '<div class="ach-bar"><div class="ach-bar-fill" style="width:' + pct + '%"></div></div></div>';
+      } else {
+        html += '<div class="ach-row locked">🔒 레벨 ' + (i+1) + ' · ???</div>';
+      }
+    }
+    html += '</div>';
+    achScoreList.innerHTML = html;
+  }
+
+  function renderItemAchievements(){
+    let html = '';
+    Object.keys(ITEM_ACH_DEFS).forEach(type=>{
+      const def = ITEM_ACH_DEFS[type];
+      const count = save.itemKills[type] || 0;
+      const tiers = def.tiers;
+      const level = tiers.filter(t=>count>=t).length;
+      const maxLevel = tiers.length;
+      const color = ITEM_COLORS[type];
+      html += '<div class="ach-block"><div class="ach-title">'
+        + '<svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="' + color + '" stroke="rgba(255,255,255,0.9)" stroke-width="2"/>' + ITEM_GLYPHS[type] + '</svg>'
+        + def.name + ' · Lv.' + level + '/' + maxLevel + '</div>'
+        + '<div style="font-size:10.5px; color:#6b7280; margin:-2px 0 6px 24px;">' + def.desc + '</div>';
+      if (level >= maxLevel){
+        html += '<div class="ach-row done">✅ 모든 레벨 달성! (총 ' + count + '회 처치)</div>';
+      } else {
+        const target = tiers[level];
+        const pct = Math.min(100, Math.floor(count/target*100));
+        html += '<div class="ach-row current">' + count + ' / ' + target + '회 처치'
+          + '<div class="ach-bar"><div class="ach-bar-fill" style="width:' + pct + '%"></div></div></div>';
+      }
+      html += '</div>';
+    });
+    achItemList.innerHTML = html;
+  }
+
+  function renderBossAchievements(){
+    const count = save.bossKills || 0;
+    const tiers = BOSS_ACH.tiers;
+    const level = tiers.filter(t=>count>=t).length;
+    const maxLevel = tiers.length;
+    let html = '<div class="ach-block"><div class="ach-title">🤖 ' + BOSS_ACH.name + ' · Lv.' + level + '/' + maxLevel + '</div>'
+      + '<div style="font-size:10.5px; color:#6b7280; margin:-2px 0 6px 0;">' + BOSS_ACH.desc + '</div>';
+    if (level >= maxLevel){
+      html += '<div class="ach-row done">✅ 모든 레벨 달성! (총 ' + count + '회 처치)</div>';
+    } else {
+      const target = tiers[level];
+      const pct = Math.min(100, Math.floor(count/target*100));
+      html += '<div class="ach-row current">' + count + ' / ' + target + '회 처치'
+        + '<div class="ach-bar"><div class="ach-bar-fill" style="width:' + pct + '%"></div></div></div>';
+    }
+    html += '</div>';
+    achBossList.innerHTML = html;
+  }
+
+  function setAchTab(tab){
+    achScoreList.classList.toggle('hidden', tab !== 'score');
+    achItemList.classList.toggle('hidden', tab !== 'item');
+    achBossList.classList.toggle('hidden', tab !== 'boss');
+    achScoreTab.classList.toggle('active', tab === 'score');
+    achItemTab.classList.toggle('active', tab === 'item');
+    achBossTab.classList.toggle('active', tab === 'boss');
+  }
+  achScoreTab.addEventListener('click', ()=> setAchTab('score'));
+  achItemTab.addEventListener('click', ()=> setAchTab('item'));
+  achBossTab.addEventListener('click', ()=> setAchTab('boss'));
+  openAchBtn.addEventListener('click', ()=>{
+    renderScoreAchievements();
+    renderItemAchievements();
+    renderBossAchievements();
+    setAchTab('score');
+    startScreen.classList.add('hidden');
+    achScreen.classList.remove('hidden');
+  });
+  closeAchBtn.addEventListener('click', ()=>{
+    achScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+  });
+
+  const calibrateBtn = document.getElementById('calibrateBtn');
+  const resetCalibrateBtn = document.getElementById('resetCalibrateBtn');
+  const calibrateStatus = document.getElementById('calibrateStatus');
+  calibrateBtn.addEventListener('click', ()=>{
+    if (lastRawBeta === null){
+      calibrateStatus.textContent = '자이로 신호가 아직 없습니다 (게임을 자이로 모드로 한 번 시작한 뒤 다시 시도하세요)';
+      calibrateStatus.style.color = '#ffb703';
+      return;
+    }
+    baseBeta = lastRawBeta; baseGamma = lastRawGamma;
+    tiltX = 0; tiltY = 0;
+    calibrateStatus.textContent = '영점이 지금 자세로 설정되었습니다';
+    calibrateStatus.style.color = '#7dd3fc';
+  });
+  resetCalibrateBtn.addEventListener('click', ()=>{
+    if (initialBeta === null){
+      calibrateStatus.textContent = '자이로 신호가 아직 없습니다';
+      calibrateStatus.style.color = '#ffb703';
+      return;
+    }
+    baseBeta = initialBeta; baseGamma = initialGamma;
+    tiltX = 0; tiltY = 0;
+    calibrateStatus.textContent = '자이로 초기값으로 되돌렸습니다';
+    calibrateStatus.style.color = '#7dd3fc';
+  });
+
+  // ---------- Helpers ----------
+  function pickWeighted(weights){
+    const entries = Object.entries(weights);
+    const total = entries.reduce((s,[,w])=>s+w,0);
+    let r = rand(0,total);
+    for (const [k,w] of entries){ if (r<w) return k; r-=w; }
+    return entries[0][0];
+  }
+
+  function spawnEnemy(){
+    const edge = Math.floor(rand(0,4));
+    let x,y;
+    if (edge===0){ x = rand(0,W); y = -20; }
+    else if (edge===1){ x = W+20; y = rand(0,H); }
+    else if (edge===2){ x = rand(0,W); y = H+20; }
+    else { x = -20; y = rand(0,H); }
+
+    const available = Object.keys(ENEMY_TYPES).filter(k=>ENEMY_TYPES[k].minWave <= wave);
+    const type = available[Math.floor(rand(0,available.length))];
+    const def = ENEMY_TYPES[type];
+    const waveSpeedMul = 1 + (wave-1)*0.07;
+    const en = {
+      x, y, r: def.r, speedBase: def.speed*waveSpeedMul,
+      hp: def.hp, maxHp: def.hp, type, wanderPhase: rand(0,Math.PI*2), hitCooldown: 0
+    };
+    if (type === 'fast'){ en.dashTimer = rand(400,1200); en.dashActive = 0; }
+    if (type === 'wanderer'){ en.teleTimer = rand(1800,3000); }
+    if (type === 'spawner'){ en.spawnMinionTimer = rand(1800,2600); }
+    enemies.push(en);
+  }
+
+  function spawnMinionNear(x, y){
+    if (enemies.length > 40) return; // safety cap
+    const def = ENEMY_TYPES.chaser;
+    const ang = rand(0, Math.PI*2);
+    const dist = rand(24, 46);
+    const mx = clamp(x + Math.cos(ang)*dist, def.r, W-def.r);
+    const my = clamp(y + Math.sin(ang)*dist, def.r, H-def.r);
+    const waveSpeedMul = 1 + (wave-1)*0.07;
+    enemies.push({
+      x: mx, y: my, r: def.r*0.75, speedBase: def.speed*waveSpeedMul*1.1,
+      hp: 1, maxHp: 1, type: 'chaser', wanderPhase: rand(0,Math.PI*2), hitCooldown: 0
+    });
+    addParticles(mx, my, ENEMY_TYPES.spawner.color, 6);
+  }
+
+  function spawnItem(){
+    const type = pickWeighted(ITEM_WEIGHTS);
+    const x = rand(40, W-40);
+    const y = rand(100, H-40);
+    items.push({x, y, r: 14, type, pulse: Math.random()*Math.PI*2, spawnedAt: elapsed});
+  }
+
+  function addParticles(x,y,color,n){
+    for (let i=0;i<n;i++){
+      const a = rand(0, Math.PI*2);
+      const sp = rand(1,5);
+      particles.push({x,y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 1, color});
+    }
+  }
+
+  function addZone(x,y,r,duration,color){
+    zones.push({x,y,r,life:duration,maxLife:duration,color});
+  }
+
+  function addScore(n){
+    score += n;
+    scoreEl.textContent = 'SCORE ' + score;
+  }
+
+  function updateBuffsUI(){
+    let html = '';
+    if (bladeTimer > 0) html += '<span>🗡 칼날</span>';
+    if (balls.length > 0) html += '<span>🟢 구슬 x' + balls.length + '</span>';
+    if (freezeTimer > 0) html += '<span>❄️ 빙결</span>';
+    if (invincibleBuffTimer > 0) html += '<span>⭐ 무적</span>';
+    if (hasShield) html += '<span>🛡 보호막</span>';
+    if (fireState === 'charging') html += '<span>🔥 차징중</span>';
+    if (fireState === 'dashing') html += '<span>🔥 화염돌진</span>';
+    buffsEl.innerHTML = html;
+  }
+
+  function updateLivesUI(){
+    livesEl.textContent = '♥ '.repeat(Math.max(lives,0)).trim();
+  }
+
+  // Unified damage application with per-enemy hit cooldown so tanky enemies
+  // can't be deleted in a single frame/tick by an overlapping effect.
+  function applyDamage(en, color){
+    if (en.hitCooldown > 0) return false;
+    en.hitCooldown = HIT_COOLDOWN;
+    en.hp -= 1;
+    addParticles(en.x, en.y, color, en.hp<=0 ? 8 : 4);
+    if (en.hp <= 0){
+      addScore(ENEMY_TYPES[en.type].score);
+      const sourceType = COLOR_TO_ITEM[color];
+      if (sourceType) recordItemKill(sourceType);
+      sfxEnemyDown();
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- Game control ----------
+  function resetGame(){
+    score = 0; lives = 3; elapsed = 0;
+    enemies = []; items = []; balls = []; particles = []; zones = []; lightningBolts = [];
+    bladeTimer = 0; freezeTimer = 0; invincibleBuffTimer = 0; hasShield = false;
+    fireState = 'idle'; fireTimer = 0;
+    wave = 1; waveBannerTimer = 1600; waveBannerText = 'WAVE 1';
+    enemySpawnInterval = 1500; itemSpawnInterval = 3200;
+    enemySpawnTimer = 0; itemSpawnTimer = 0;
+    invincible = 1200;
+    player.x = W/2; player.y = H/2; player.vx = 0; player.vy = 0;
+    if (controlMode !== 'gyro'){ usingGyro = false; tiltX = 0; tiltY = 0; }
+    bossTriggered = false; bossActive = false; bossPhase = 1; bossHp = 0; bossMaxHp = 0;
+    bossState = 'idle'; bossStateTimer = 0; bossPattern = null; bossChargeVisual = 0;
+    bossPhaseBannerTimer = 0; bossHazards = []; bossTelegraphs = []; bossDrillQueue = 0;
+    bossVulnerable = false; bossPatternsSeen = 0; bossReplayMode = false;
+    bossArmThrustDodges = 0; bossExhausted = false; bossArmHitsTaken = 0;
+    bossPillars = []; bossPillarActive = false; bossPatternSincePillar = 0;
+    waveEl.style.display = '';
+    scoreEl.textContent = 'SCORE 0';
+    waveEl.textContent = 'WAVE 1';
+    updateLivesUI();
+    updateBuffsUI();
+  }
+
+  // ---------- Boss encounter ----------
+  function startBossEncounter(){
+    bossActive = true;
+    bossPhase = 1;
+    bossMaxHp = 46;
+    bossHp = bossMaxHp;
+    bossX = W/2;
+    bossHeadY = -160;
+    bossInvincible = false;
+    bossHitCooldown = 0;
+    bossState = 'intro';
+    bossStateTimer = 2600;
+    bossPattern = null;
+    bossChargeVisual = 0;
+    bossPhaseBannerTimer = 2200;
+    bossPhaseBannerText = 'BOSS';
+    waveBannerTimer = 0; // suppress any leftover "WAVE 1" banner from resetGame()
+    bossHazards = [];
+    bossTelegraphs = [];
+    bossDrillQueue = 0;
+    bossArmThrustDodges = 0;
+    bossExhausted = false;
+    bossArmHitsTaken = 0;
+    bossPillars = [];
+    bossPillarActive = false;
+    bossPatternSincePillar = 0;
+    enemies = [];
+    hud.classList.remove('hidden');
+    if (bossReplayMode){
+      waveEl.style.display = 'none';
+    } else {
+      waveEl.style.display = '';
+      waveEl.textContent = 'BOSS';
+    }
+    stopMusic();
+    playBossIntroJingle();
+  }
+
+  function endBossEncounter(){
+    bossActive = false;
+    bossHazards = [];
+    bossTelegraphs = [];
+    bossPillars = [];
+    bossPillarActive = false;
+    enemies = enemies.filter(en => en.type !== 'laserSeg');
+    if (bossReplayMode){
+      stopMusic();
+      waveBannerTimer = 2200;
+      waveBannerText = 'VICTORY!';
+      setTimeout(()=>{ goToMenu(); }, 1400);
+      return;
+    }
+    wave = BOSS_WAVE + 1;
+    elapsed = (wave - 1) * waveDuration;
+    waveBannerTimer = 2200;
+    waveBannerText = 'WAVE ' + wave;
+    waveEl.textContent = 'WAVE ' + wave;
+    startMusic();
+  }
+
+  function triggerBossPhase2(){
+    bossPhase = 2;
+    bossInvincible = true;
+    bossPhaseBannerTimer = 1800;
+    bossPhaseBannerText = 'PHASE 2';
+    bossState = 'cooldown';
+    bossStateTimer = 1500; // grace period, also acts as the brief invincibility window
+    bossHazards = [];
+    bossTelegraphs = [];
+    bossExhausted = false;
+    bossPillars = [
+      { x: W*0.22, y: H*0.55, r: 32, hp: 3, maxHp: 3, destroyed: false, hitCooldown: 0 },
+      { x: W*0.78, y: H*0.55, r: 32, hp: 3, maxHp: 3, destroyed: false, hitCooldown: 0 },
+      { x: W*0.22, y: H*0.8,  r: 32, hp: 3, maxHp: 3, destroyed: false, hitCooldown: 0 },
+      { x: W*0.78, y: H*0.8,  r: 32, hp: 3, maxHp: 3, destroyed: false, hitCooldown: 0 }
+    ];
+    bossPatternSincePillar = 1;
+    playTone(180, 0.3, 'sawtooth', 0.1, 70);
+    playTone(360, 0.25, 'square', 0.08, 140, 0.08);
+    addParticles(bossX, bossHeadY + 90, '#ff5566', 30);
+  }
+
+  function triggerBossDefeat(){
+    bossState = 'defeated';
+    bossStateTimer = 1600;
+    bossHazards = [];
+    bossTelegraphs = [];
+    bossPillarActive = false;
+    addScore(500);
+    save.bossKills = (save.bossKills || 0) + 1;
+    save.bossDefeatedEver = true;
+    persistSave();
+    sfxBomb();
+    for (let i=0;i<6;i++){
+      setTimeout(()=>{ addParticles(bossX + rand(-80,80), bossHeadY + 90 + rand(-30,30), '#ffb703', 16); }, i*120);
+    }
+  }
+
+  // ----- phase 1 damage: only through the arm-exhaustion window -----
+  function checkArmDamage(){
+    if (bossHitCooldown > 0) return;
+    const armX = bossX + bossExhaustedArmSide * (BOSS_R + 150);
+    const armY = bossHeadY + 240;
+    let hit = false, sourceColor = null;
+    if (bladeTimer > 0){
+      const t = now_();
+      for (let i=0;i<bladeCount;i++){
+        const angle = (t/260) + (i * (Math.PI*2/bladeCount));
+        const bx = player.x + Math.cos(angle)*bladeRadius;
+        const by = player.y + Math.sin(angle)*bladeRadius;
+        if (Math.hypot(bx-armX, by-armY) < 46){ hit = true; sourceColor = '#4cc9f0'; break; }
+      }
+    }
+    if (!hit) balls.forEach(b=>{ if (!hit && Math.hypot(b.x-armX, b.y-armY) < 46+b.r){ hit = true; sourceColor = '#7cff6b'; } });
+    if (!hit) zones.forEach(z=>{ if (!hit && Math.hypot(z.x-armX, z.y-armY) < 46+z.r){ hit = true; sourceColor = z.color; } });
+    if (hit){
+      bossHp -= 1;
+      bossArmHitsTaken++;
+      bossHitCooldown = HIT_COOLDOWN;
+      addParticles(armX, armY, sourceColor || '#fff', 8);
+      sfxEnemyDown();
+      if (bossHp <= 0){ triggerBossDefeat(); return; }
+      if (bossArmHitsTaken >= BOSS_ARM_HITS_TO_RECOVER) endBossExhaustion();
+    }
+  }
+
+  function startBossExhaustion(){
+    bossExhausted = true;
+    bossArmHitsTaken = 0;
+    bossExhaustedArmSide = Math.random() < 0.5 ? -1 : 1;
+    bossState = 'exhausted';
+    bossStateTimer = 5000;
+    bossHazards = [];
+    bossTelegraphs = [];
+    playTone(140, 0.3, 'sawtooth', 0.08, 60);
+  }
+  function endBossExhaustion(){
+    bossExhausted = false;
+    bossState = 'cooldown';
+    bossStateTimer = 1000;
+  }
+
+  // ----- phase 2 damage: only through destroying the 4 pillars -----
+  function checkPillarDamage(){
+    bossPillars.forEach(p=>{
+      if (p.destroyed || p.hitCooldown > 0) return;
+      let hit = false, sourceColor = null;
+      if (bladeTimer > 0){
+        const t = now_();
+        for (let i=0;i<bladeCount;i++){
+          const angle = (t/260) + (i * (Math.PI*2/bladeCount));
+          const bx = player.x + Math.cos(angle)*bladeRadius;
+          const by = player.y + Math.sin(angle)*bladeRadius;
+          if (Math.hypot(bx-p.x, by-p.y) < p.r + 9){ hit = true; sourceColor = '#4cc9f0'; break; }
+        }
+      }
+      if (!hit) balls.forEach(b=>{ if (!hit && Math.hypot(b.x-p.x, b.y-p.y) < p.r+b.r){ hit = true; sourceColor = '#7cff6b'; } });
+      if (!hit) zones.forEach(z=>{ if (!hit && Math.hypot(z.x-p.x, z.y-p.y) < p.r+z.r){ hit = true; sourceColor = z.color; } });
+      if (hit){
+        p.hp--;
+        p.hitCooldown = HIT_COOLDOWN;
+        addParticles(p.x, p.y, sourceColor || '#fff', 8);
+        sfxPillarHit();
+        if (p.hp <= 0){
+          p.destroyed = true;
+          sfxPillarBreak();
+          addParticles(p.x, p.y, '#ffb703', 22);
+          bossHp -= 6;
+          if (bossHp <= 0) triggerBossDefeat();
+        }
+      }
+    });
+  }
+
+  function checkBossDamage(){
+    if (!bossActive || bossState === 'intro' || bossState === 'defeated') return;
+    if (bossInvincible) return;
+    if (bossPhase === 1){
+      if (bossExhausted) checkArmDamage();
+    } else {
+      if (bossPillarActive) checkPillarDamage();
+    }
+  }
+
+  function bossPickPattern(){
+    const p1 = ['laser','drill','slam','missiles','armThrust'];
+    const p2 = ['overdrive','dualdrill','megalaser'];
+    if (bossPhase === 1) return p1[Math.floor(rand(0,p1.length))];
+    return Math.random() < 0.8 ? p2[Math.floor(rand(0,p2.length))] : p1[Math.floor(rand(0,p1.length))];
+  }
+
+  function bossStartPattern(name){
+    bossPattern = name;
+    bossTelegraphs = [];
+    if (name === 'laser' || name === 'megalaser'){
+      bossExecuteRingLaser(name === 'megalaser');
+    } else if (name === 'drill' || name === 'dualdrill'){
+      bossDrillQueue = name === 'dualdrill' ? 1 : 3;
+      bossDrillIsDual = name === 'dualdrill';
+      bossPattern = 'drill';
+      bossQueueDrillTelegraph();
+    } else if (name === 'slam'){
+      const tx = clamp(player.x + rand(-40,40), 60, W-60);
+      const ty = clamp(player.y + rand(-40,40), 120, H-100);
+      bossTelegraphs.push({ kind:'circle', x:tx, y:ty, r:110, timer:700, maxTimer:700 });
+      bossState = 'charging'; bossStateTimer = 700;
+    } else if (name === 'missiles'){
+      const n = 5;
+      for (let i=0;i<n;i++){
+        const x = 50 + (W-100) * (i/(n-1));
+        const y = rand(H*0.4, H*0.75);
+        bossTelegraphs.push({ kind:'circle', x, y, r:46, timer:800, maxTimer:800 });
+      }
+      bossState = 'charging'; bossStateTimer = 800;
+    } else if (name === 'armThrust'){
+      const tx = clamp(player.x, 70, W-70);
+      const ty = clamp(player.y, 120, H-80);
+      bossArmThrustTarget = { x: tx, y: ty };
+      bossArmThrustSide = tx < bossX ? -1 : 1;
+      bossTelegraphs.push({ kind:'circle', x:tx, y:ty, r:50, timer:600, maxTimer:600 });
+      bossState = 'charging'; bossStateTimer = 600;
+    } else if (name === 'overdrive'){
+      bossInvincible = true;
+      bossState = 'executing'; bossStateTimer = 3400;
+      bossHazards.push({ kind:'orbitBeam', angle: rand(0,Math.PI*2), spin: (Math.random()<0.5?1:-1)*0.0022, life: 3400 });
+    }
+  }
+
+  function bossQueueDrillTelegraph(){
+    if (bossDrillIsDual){
+      const y = rand(H*0.35, H*0.75);
+      const x = rand(W*0.3, W*0.7);
+      bossTelegraphs.push({ kind:'line', x1:0, y1:y, x2:W, y2:y, timer:800, maxTimer:800, axis:'h', pos:y });
+      bossTelegraphs.push({ kind:'line', x1:x, y1:0, x2:x, y2:H, timer:800, maxTimer:800, axis:'v', pos:x });
+    } else if (Math.random() < 0.5){
+      const y = rand(H*0.3, H*0.8);
+      bossTelegraphs.push({ kind:'line', x1:0, y1:y, x2:W, y2:y, timer:800, maxTimer:800, axis:'h', pos:y });
+    } else {
+      const x = rand(W*0.15, W*0.85);
+      bossTelegraphs.push({ kind:'line', x1:x, y1:0, x2:x, y2:H, timer:800, maxTimer:800, axis:'v', pos:x });
+    }
+    bossState = 'charging'; bossStateTimer = 800;
+  }
+
+  // Concentric ring "contour line" laser: rings radiate out from the boss. Odd rings
+  // charge/pop in sequence (closest-to-farthest) first, then even rings do the same -
+  // the player has to keep hopping between the safe parity band to dodge.
+  function bossExecuteRingLaser(isMega){
+    const bcx = bossX, bcy = bossHeadY + 90;
+    const ringWidth = isMega ? 60 : 75;
+    const chargeDuration = isMega ? 750 : 950;
+    const stagger = isMega ? 280 : 360;
+    const groupGap = 850;
+    const maxR = Math.max(
+      Math.hypot(bcx, bcy), Math.hypot(W-bcx, bcy),
+      Math.hypot(bcx, H-bcy), Math.hypot(W-bcx, H-bcy)
+    );
+    const numRings = Math.max(4, Math.ceil(maxR/ringWidth));
+    const oddRings = [], evenRings = [];
+    for (let k=1;k<=numRings;k++){ (k%2===1?oddRings:evenRings).push(k); }
+    oddRings.forEach((k,i)=>{
+      const delay = i*stagger;
+      bossHazards.push({ kind:'ring', bcx, bcy, rInner:(k-1)*ringWidth, rOuter:k*ringWidth,
+        chargeDelay: delay, chargeDuration, elapsed:0, charge:0, popped:false, popFade:0, chargedSoundPlayed:false });
+    });
+    const oddDur = (oddRings.length-1)*stagger + chargeDuration;
+    const evenStart = oddDur + groupGap;
+    evenRings.forEach((k,i)=>{
+      const delay = evenStart + i*stagger;
+      bossHazards.push({ kind:'ring', bcx, bcy, rInner:(k-1)*ringWidth, rOuter:k*ringWidth,
+        chargeDelay: delay, chargeDuration, elapsed:0, charge:0, popped:false, popFade:0, chargedSoundPlayed:false });
+    });
+    const evenDur = (evenRings.length-1)*stagger + chargeDuration;
+    bossState = 'executing';
+    bossStateTimer = evenStart + evenDur + 300;
+  }
+
+  function bossExecutePattern(){
+    if (bossPattern === 'drill' || bossPattern === 'dualdrill'){
+      bossTelegraphs.forEach(tg=>{
+        bossHazards.push({ kind:'drill', axis: tg.axis, pos: tg.pos, progress: -0.08, speed: 0.0021, life: 900, hitPlayer:false });
+      });
+      bossTelegraphs = [];
+      sfxLightning();
+      bossState = 'executing'; bossStateTimer = 900;
+    } else if (bossPattern === 'slam'){
+      const tg = bossTelegraphs[0];
+      if (tg) bossHazards.push({ kind:'shockwave', x:tg.x, y:tg.y, r:0, maxR:tg.r, life:600, maxLife:600, hit:false });
+      bossTelegraphs = [];
+      sfxBomb();
+      bossState = 'executing'; bossStateTimer = 700;
+    } else if (bossPattern === 'missiles'){
+      bossTelegraphs.forEach(tg=>{
+        bossHazards.push({ kind:'shockwave', x:tg.x, y:tg.y, r:0, maxR:tg.r*0.85, life:280, maxLife:280, hit:false });
+      });
+      bossTelegraphs = [];
+      sfxBomb();
+      bossState = 'executing'; bossStateTimer = 400;
+    } else if (bossPattern === 'armThrust'){
+      bossHazards.push({ kind:'armThrust', x: bossArmThrustTarget.x, y: bossArmThrustTarget.y, progress: 0, hitPlayer:false });
+      bossTelegraphs = [];
+      sfxArmThrust();
+      bossState = 'executing'; bossStateTimer = 420;
+    }
+  }
+
+  function bossUpdate(dt){
+    enemies.forEach(en=>{ if (en.hitCooldown > 0) en.hitCooldown -= dt; });
+    if (bossHitCooldown > 0) bossHitCooldown -= dt;
+    if (bossPhaseBannerTimer > 0) bossPhaseBannerTimer -= dt;
+    bossPillars.forEach(p=>{ if (p.hitCooldown > 0) p.hitCooldown -= dt; });
+
+    enemies = enemies.filter(en=>{
+      if (en.type === 'laserSeg'){ en.life -= dt; return en.life > 0; }
+      return true;
+    });
+
+    if (bossState === 'intro'){
+      bossHeadY += (-70 - bossHeadY) * Math.min(1, dt/900);
+      bossStateTimer -= dt;
+      if (bossStateTimer <= 0){
+        bossState = 'cooldown';
+        bossStateTimer = 700;
+        bossPhaseBannerTimer = 1800;
+        bossPhaseBannerText = 'PHASE 1';
+        startBossMusic();
+      }
+      return;
+    }
+    if (bossState === 'defeated'){
+      bossStateTimer -= dt;
+      if (bossStateTimer <= 0) endBossEncounter();
+      return;
+    }
+    if (bossState === 'exhausted'){
+      bossStateTimer -= dt;
+      checkBossDamage();
+      if (bossStateTimer <= 0) endBossExhaustion();
+      return;
+    }
+    if (bossState === 'pillars'){
+      bossStateTimer -= dt;
+      checkBossDamage();
+      if (bossStateTimer <= 0){
+        bossPillarActive = false;
+        bossState = 'cooldown'; bossStateTimer = 1000;
+      }
+      return;
+    }
+
+    if (bossState === 'cooldown'){
+      bossStateTimer -= dt;
+      if (bossStateTimer <= 0){
+        if (bossPattern === 'drill' && bossDrillQueue > 0){
+          bossQueueDrillTelegraph();
+        } else if (bossPhase === 2 && bossPatternSincePillar >= 2 && bossPillars.some(p=>!p.destroyed)){
+          bossPatternSincePillar = 0;
+          bossPillarActive = true;
+          bossState = 'pillars';
+          bossStateTimer = 3500;
+          playTone(500, 0.2, 'square', 0.06, 900);
+        } else {
+          bossStartPattern(bossPickPattern());
+          if (bossPhase === 2) bossPatternSincePillar++;
+        }
+      }
+    } else if (bossState === 'charging'){
+      bossStateTimer -= dt;
+      const totalCharge = bossPattern === 'armThrust' ? 600 : (bossPattern === 'slam' ? 700 : 800);
+      bossChargeVisual = 1 - clamp(bossStateTimer/totalCharge, 0, 1);
+      bossTelegraphs.forEach(tg=>{ tg.timer -= dt; });
+      if (bossStateTimer <= 0) bossExecutePattern();
+    } else if (bossState === 'executing'){
+      bossStateTimer -= dt;
+      updateBossHazards(dt);
+      if (bossPattern === 'drill' && bossStateTimer <= 0){
+        bossDrillQueue--;
+        if (bossDrillQueue > 0){
+          bossState = 'cooldown'; bossStateTimer = 350;
+        } else {
+          bossPattern = null;
+          bossState = 'cooldown'; bossStateTimer = 1000;
+        }
+      } else if (bossStateTimer <= 0){
+        if (bossPattern === 'overdrive') bossInvincible = false;
+        if (bossPattern === 'armThrust'){
+          const hz = bossHazards.find(h=>h.kind==='armThrust');
+          const dodged = !(hz && hz.hitPlayer);
+          if (dodged){
+            bossArmThrustDodges++;
+            if (bossArmThrustDodges >= 3){
+              bossArmThrustDodges = 0;
+              bossHazards = [];
+              startBossExhaustion();
+              return;
+            }
+          }
+        }
+        bossHazards = [];
+        bossState = 'cooldown'; bossStateTimer = 1000;
+      }
+    }
+
+    checkBossDamage();
+  }
+
+  function updateBossHazards(dt){
+    bossHazards.forEach(hz=>{
+      if (hz.kind === 'drill'){
+        hz.progress += hz.speed*dt;
+        const t = clamp(hz.progress, 0, 1);
+        const x = hz.axis === 'h' ? t*W : hz.pos;
+        const y = hz.axis === 'h' ? hz.pos : t*H;
+        if (invincible <= 0 && !hz.hitPlayer && Math.hypot(player.x-x, player.y-y) < player.r + 22){
+          hz.hitPlayer = true;
+          hitPlayer();
+        }
+      } else if (hz.kind === 'shockwave'){
+        hz.life -= dt;
+        hz.r = hz.maxR * (1 - Math.max(0, hz.life)/hz.maxLife);
+        if (!hz.hit && invincible <= 0 && Math.hypot(player.x-hz.x, player.y-hz.y) < hz.r + player.r){
+          hz.hit = true;
+          hitPlayer();
+        }
+      } else if (hz.kind === 'armThrust'){
+        hz.progress += dt/420;
+        if (!hz.hitPlayer && hz.progress > 0.25 && hz.progress < 0.75 && invincible <= 0 && Math.hypot(player.x-hz.x, player.y-hz.y) < player.r + 42){
+          hz.hitPlayer = true;
+          hitPlayer();
+        }
+      } else if (hz.kind === 'ring'){
+        hz.elapsed += dt;
+        if (hz.elapsed >= hz.chargeDelay && !hz.chargedSoundPlayed){
+          hz.chargedSoundPlayed = true;
+          sfxRingCharge();
+        }
+        if (hz.elapsed >= hz.chargeDelay){
+          hz.charge = clamp((hz.elapsed - hz.chargeDelay)/hz.chargeDuration, 0, 1);
+          if (hz.charge >= 1 && !hz.popped){
+            hz.popped = true;
+            hz.popFade = 350;
+            const d = Math.hypot(player.x-hz.bcx, player.y-hz.bcy);
+            if (d >= hz.rInner && d < hz.rOuter && invincible <= 0){
+              hitPlayer();
+            }
+            sfxRingPop();
+          }
+        }
+        if (hz.popped) hz.popFade -= dt;
+      } else if (hz.kind === 'orbitBeam'){
+        hz.life -= dt;
+        hz.angle += hz.spin*dt;
+        const cx = W/2, cy = H/2;
+        const len = Math.max(W,H);
+        const ex = cx + Math.cos(hz.angle)*len, ey = cy + Math.sin(hz.angle)*len;
+        const d = distToSegment(player.x, player.y, cx, cy, ex, ey);
+        if (d < player.r + 14 && invincible <= 0){
+          hitPlayer();
+        }
+      }
+    });
+    bossHazards = bossHazards.filter(hz=>{
+      if (hz.kind === 'drill') return hz.progress < 1.15;
+      if (hz.kind === 'armThrust') return hz.progress < 1.1;
+      if (hz.kind === 'orbitBeam') return hz.life > 0;
+      if (hz.kind === 'ring') return !hz.popped || hz.popFade > 0;
+      return hz.life > -50;
+    });
+  }
+
+  function distToSegment(px,py,x1,y1,x2,y2){
+    const dx = x2-x1, dy = y2-y1;
+    const lenSq = dx*dx+dy*dy;
+    let t = lenSq > 0 ? ((px-x1)*dx + (py-y1)*dy) / lenSq : 0;
+    t = clamp(t, 0, 1);
+    const cx = x1 + dx*t, cy = y1 + dy*t;
+    return Math.hypot(px-cx, py-cy);
+  }
+
+  // ---------- Tutorial ----------
+  const tutorialBtn = document.getElementById('tutorialBtn');
+  const tutorialExitBtn = document.getElementById('tutorialExitBtn');
+  const tutorialSpotlight = document.getElementById('tutorialSpotlight');
+  const tutorialPanel = document.getElementById('tutorialPanel');
+  const tutorialText = document.getElementById('tutorialText');
+  const tutorialNextBtn = document.getElementById('tutorialNextBtn');
+  const tutorialChoices = document.getElementById('tutorialChoices');
+  const tutorialGyroChoice = document.getElementById('tutorialGyroChoice');
+  const tutorialTouchChoice = document.getElementById('tutorialTouchChoice');
+  const tutorialKeyChoice = document.getElementById('tutorialKeyChoice');
+  const tutorialJoystickChoice = document.getElementById('tutorialJoystickChoice');
+  const tutorialCalibrateBtn = document.getElementById('tutorialCalibrateBtn');
+
+  let tutorialActive = false;
+  let tutorialPhase = '';
+  let tutorialTimer = 0;
+  let tutorialWaitingForInput = false;
+  let tutorialTargetEnemy = null;
+  let tutorialTargetItem = null;
+
+  function showSpotlightAt(x, y, radius){
+    tutorialSpotlight.style.background = 'radial-gradient(circle at ' + x + 'px ' + y + 'px, transparent 0, transparent ' + radius + 'px, rgba(0,0,0,0.72) ' + (radius+55) + 'px)';
+    tutorialSpotlight.classList.remove('hidden');
+  }
+  function hideSpotlight(){ tutorialSpotlight.classList.add('hidden'); }
+
+  function setTutorialText(text, btnLabel){
+    tutorialText.textContent = text;
+    tutorialNextBtn.textContent = btnLabel;
+    tutorialPanel.classList.remove('hidden');
+  }
+  function hideTutorialPanel(){ tutorialPanel.classList.add('hidden'); }
+
+  function startTutorial(){
+    score = 0; lives = 3; elapsed = 0;
+    enemies = []; items = []; balls = []; particles = []; zones = []; lightningBolts = [];
+    bladeTimer = 0; freezeTimer = 0; invincibleBuffTimer = 0; hasShield = false;
+    fireState = 'idle'; fireTimer = 0;
+    waveBannerTimer = 0;
+    invincible = 0;
+    player.x = W/2; player.y = H*0.62; player.vx = 0; player.vy = 0;
+    if (controlMode !== 'gyro'){ usingGyro = false; tiltX = 0; tiltY = 0; }
+
+    startScreen.classList.add('hidden');
+    hud.classList.remove('hidden');
+    waveEl.style.display = 'none';
+    scoreEl.style.display = 'none';
+    updateLivesUI();
+    pauseBtn.classList.add('hidden');
+    tutorialExitBtn.classList.remove('hidden');
+
+    tutorialActive = true;
+    running = true; paused = false;
+    updateJoystickVisibility();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+    startMusic();
+    showTutorialStep('control_picker');
+  }
+
+  function endTutorial(){
+    tutorialActive = false;
+    running = false;
+    stopMusic();
+    hideTutorialPanel();
+    hideSpotlight();
+    tutorialExitBtn.classList.add('hidden');
+    hud.classList.add('hidden');
+    waveEl.style.display = '';
+    scoreEl.style.display = '';
+    enemies = []; items = [];
+    setJoystickLiftedForPanel(false);
+    updateJoystickVisibility();
+    startScreen.classList.remove('hidden');
+    updateBestScoreDisplay();
+  }
+
+  // Picks a spot guaranteed to be at least minDist away from the player,
+  // clamped to the playfield - so a tutorial item never spawns close enough
+  // to be picked up without actually moving.
+  function tutorialFarPosition(minDist){
+    for (let i=0;i<10;i++){
+      const angle = rand(0, Math.PI*2);
+      const dist = rand(minDist, minDist+90);
+      const x = clamp(player.x + Math.cos(angle)*dist, 60, W-60);
+      const y = clamp(player.y + Math.sin(angle)*dist, 90, H-90);
+      if (Math.hypot(x-player.x, y-player.y) >= minDist*0.85) return {x, y};
+    }
+    // fallback: opposite corner of the screen from the player
+    return {
+      x: player.x < W/2 ? W-70 : 70,
+      y: player.y < H/2 ? H-100 : 100
+    };
+  }
+
+  function showTutorialStep(phase){
+    tutorialPhase = phase;
+    tutorialWaitingForInput = true;
+    tutorialTimer = 0;
+    hideSpotlight();
+    tutorialChoices.classList.toggle('hidden', phase !== 'control_picker');
+    if (phase !== 'control_picker') tutorialCalibrateBtn.classList.add('hidden');
+    if (phase === 'control_picker'){
+      tutorialWaitingForInput = false; // free movement while trying each scheme
+      setTutorialText('원하는 조작 방식을 하나씩 눌러서 자유롭게 움직여보세요. 다 체험했으면 다음을 누르세요.', '다음');
+    } else if (phase === 'enemy_intro'){
+      setTutorialText('이제 적이 나타납니다. 적에게 닿으면 라이프가 줄어들어요. 피해보세요!', '계속');
+    } else if (phase === 'enemy_wait'){
+      tutorialWaitingForInput = false;
+      hideTutorialPanel();
+      enemies = [];
+      const en = { x: player.x, y: -40, r: 13, speedBase: 1.0, hp: 1, maxHp: 1, type: 'chaser', wanderPhase: 0, hitCooldown: 0 };
+      enemies.push(en);
+      tutorialTargetEnemy = en;
+    } else if (phase === 'enemy_explain'){
+      showSpotlightAt(player.x, player.y, 70);
+      setTutorialText('적에게 닿아서 라이프가 1 줄었어요! 왼쪽 위 라이프를 확인해보세요. 라이프가 0이 되면 게임 오버입니다. 적마다 특징이 다르니 도감에서 확인해보세요.', '다음');
+    } else if (phase === 'item1_intro'){
+      setTutorialText('이번엔 아이템이에요. 아이템에 닿으면 특수한 효과가 발동해요. 저기 폭탄을 먹어보세요!', '계속');
+    } else if (phase === 'item1_wait'){
+      tutorialWaitingForInput = false;
+      hideTutorialPanel();
+      items = [];
+      const pos = tutorialFarPosition(170);
+      const it = { x: pos.x, y: pos.y, r: 14, type: 'bomb', pulse: 0, spawnedAt: elapsed };
+      items.push(it);
+      tutorialTargetItem = it;
+    } else if (phase === 'item1_explain'){
+      showSpotlightAt(player.x, player.y, 130);
+      setTutorialText('폭탄 아이템! 먹은 자리에 폭발이 일어나 주변 적을 즉시 처치해요.', '다음');
+    } else if (phase === 'item2_intro'){
+      setTutorialText('하나 더 볼게요. 이번엔 칼날 아이템이에요. 먹어보세요!', '계속');
+    } else if (phase === 'item2_wait'){
+      tutorialWaitingForInput = false;
+      hideTutorialPanel();
+      items = [];
+      const pos = tutorialFarPosition(170);
+      const it = { x: pos.x, y: pos.y, r: 14, type: 'blade', pulse: 0, spawnedAt: elapsed };
+      items.push(it);
+      tutorialTargetItem = it;
+    } else if (phase === 'item2_explain'){
+      showSpotlightAt(player.x, player.y, 90);
+      setTutorialText('칼날 아이템! 일정 시간 동안 몸 주위를 칼날이 돌며 닿는 적을 자동으로 처치해요.', '다음');
+    } else if (phase === 'outro'){
+      setTutorialText('이 외에도 다양한 적과 아이템이 있어요! 메인 메뉴의 📖 도감에서 전부 확인할 수 있습니다. 튜토리얼을 마칠게요.', '메인 메뉴로');
+    }
+    // measure AFTER the panel's visibility/content is set so its real height is used
+    setJoystickLiftedForPanel(phase === 'control_picker');
+  }
+
+  function handleTutorialNext(){
+    if (tutorialPhase === 'control_picker') showTutorialStep('enemy_intro');
+    else if (tutorialPhase === 'enemy_intro') showTutorialStep('enemy_wait');
+    else if (tutorialPhase === 'enemy_explain') showTutorialStep('item1_intro');
+    else if (tutorialPhase === 'item1_intro') showTutorialStep('item1_wait');
+    else if (tutorialPhase === 'item1_explain') showTutorialStep('item2_intro');
+    else if (tutorialPhase === 'item2_intro') showTutorialStep('item2_wait');
+    else if (tutorialPhase === 'item2_explain') showTutorialStep('outro');
+    else if (tutorialPhase === 'outro') endTutorial();
+  }
+
+  function tutorialUpdate(dt){
+    // let the player move for practice throughout (same feel as the real game)
+    if (!tutorialWaitingForInput){
+      const shape = t => Math.sign(t) * Math.pow(Math.abs(t), 0.72);
+      const inX = shape(tiltX), inY = shape(tiltY);
+      const accel = 0.0042 * dt * gyroSensitivity;
+      player.vx += inX * accel;
+      player.vy += inY * accel;
+      player.vx *= 0.88; player.vy *= 0.88;
+      const maxV = 0.9;
+      player.vx = clamp(player.vx, -maxV, maxV);
+      player.vy = clamp(player.vy, -maxV, maxV);
+      player.x = clamp(player.x + player.vx*dt, player.r, W-player.r);
+      player.y = clamp(player.y + player.vy*dt, player.r, H-player.r);
+    }
+
+    // keep cosmetic effects animating even while frozen for an explanation
+    if (bladeTimer > 0) bladeTimer -= dt;
+    particles.forEach(p=>{ p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life -= 0.03; });
+    particles = particles.filter(p=>p.life > 0);
+    zones.forEach(z=>{ z.life -= dt; });
+    zones = zones.filter(z=>z.life > 0);
+    lightningBolts.forEach(b=>{ b.life -= dt; });
+    lightningBolts = lightningBolts.filter(b=>b.life > 0);
+    balls.forEach(b=>{
+      b.x += b.vx*(dt/16); b.y += b.vy*(dt/16);
+      if (b.x < b.r || b.x > W-b.r) b.vx *= -1;
+      if (b.y < b.r || b.y > H-b.r) b.vy *= -1;
+      b.x = clamp(b.x, b.r, W-b.r); b.y = clamp(b.y, b.r, H-b.r);
+      b.life -= dt;
+    });
+    balls = balls.filter(b=>b.life > 0);
+
+    if (tutorialWaitingForInput) return;
+
+    if (tutorialPhase === 'enemy_wait'){
+      const en = tutorialTargetEnemy;
+      if (en){
+        const dx = player.x-en.x, dy = player.y-en.y, d = Math.hypot(dx,dy) || 1;
+        en.x += (dx/d) * 1.0 * (dt/16);
+        en.y += (dy/d) * 1.0 * (dt/16);
+        tutorialTimer += dt;
+        if (d < player.r + en.r){
+          lives -= 1;
+          addParticles(player.x, player.y, '#ff5566', 16);
+          updateLivesUI();
+          sfxHurt();
+          enemies = [];
+          tutorialTargetEnemy = null;
+          showTutorialStep('enemy_explain');
+        } else if (tutorialTimer > 7000){
+          en.x = player.x; en.y = player.y; // guarantee the demo progresses
+        }
+      }
+    } else if (tutorialPhase === 'item1_wait' || tutorialPhase === 'item2_wait'){
+      const it = tutorialTargetItem;
+      if (it && Math.hypot(player.x-it.x, player.y-it.y) < player.r + it.r){
+        pickupItem(it);
+        items = [];
+        tutorialTargetItem = null;
+        showTutorialStep(tutorialPhase === 'item1_wait' ? 'item1_explain' : 'item2_explain');
+      }
+    }
+  }
+
+  tutorialBtn.addEventListener('click', startTutorial);
+  tutorialExitBtn.addEventListener('click', endTutorial);
+  tutorialNextBtn.addEventListener('click', handleTutorialNext);
+  tutorialGyroChoice.addEventListener('click', ()=>{
+    controlMode = 'gyro';
+    baseBeta = null; baseGamma = null;
+    gyroEventCount = 0;
+    requestGyroPermission();
+    tutorialCalibrateBtn.classList.remove('hidden');
+    updateJoystickVisibility(); // hides the joystick since controlMode is no longer 'touch'
+    if (!window.isSecureContext || window.location.protocol === 'file:'){
+      setTutorialText('자이로 모드예요. 다만 이 페이지가 "' + window.location.protocol + '"로 열려있어서(https 아님) 안드로이드 브라우저는 센서를 막을 수 있어요. 신호가 안 오면 https로 호스팅해서 열어보세요. 다른 방식도 눌러보거나 준비되면 다음을 누르세요.', '다음');
+    } else {
+      setTutorialText('자이로 모드예요! 휴대폰을 기울여 빨간 점을 움직여보세요. 기준 자세가 이상하면 아래 "영점 조절" 버튼을 눌러 지금 들고 있는 자세를 정지 상태로 다시 잡을 수 있어요. 다른 방식도 눌러보거나 준비되면 다음을 누르세요.', '다음');
+    }
+    setJoystickLiftedForPanel(true);
+  });
+  tutorialCalibrateBtn.addEventListener('click', ()=>{
+    if (lastRawBeta === null){
+      setTutorialText('아직 자이로 신호가 없어요. 잠깐 폰을 움직여본 뒤 다시 눌러보세요.', '다음');
+      return;
+    }
+    baseBeta = lastRawBeta; baseGamma = lastRawGamma;
+    tiltX = 0; tiltY = 0;
+    setTutorialText('영점이 지금 자세로 맞춰졌어요! 이 자세가 새로운 "정지" 기준이 됩니다. 계속 움직여보거나 준비되면 다음을 누르세요.', '다음');
+  });
+  tutorialTouchChoice.addEventListener('click', ()=>{
+    controlMode = 'touch';
+    joystickMode = false;
+    usingGyro = false;
+    tiltX = 0; tiltY = 0;
+    tutorialCalibrateBtn.classList.add('hidden');
+    updateJoystickButtons();
+    updateJoystickVisibility();
+    setTutorialText('터치 모드예요! 화면을 누르고 끌어서 움직여보세요. 다른 방식도 눌러보거나 준비되면 다음을 누르세요.', '다음');
+    setJoystickLiftedForPanel(true);
+  });
+  tutorialJoystickChoice.addEventListener('click', ()=>{
+    controlMode = 'touch';
+    joystickMode = true;
+    usingGyro = false;
+    tiltX = 0; tiltY = 0;
+    tutorialCalibrateBtn.classList.add('hidden');
+    updateJoystickButtons();
+    updateJoystickVisibility();
+    setTutorialText('조이스틱 모드예요! 화면 아래 조이스틱을 손가락으로 밀어서 움직여보세요. 다른 방식도 눌러보거나 준비되면 다음을 누르세요.', '다음');
+    setJoystickLiftedForPanel(true);
+  });
+  tutorialKeyChoice.addEventListener('click', ()=>{
+    controlMode = 'touch'; // keeps gyro from overriding key input
+    usingGyro = false;
+    tiltX = 0; tiltY = 0;
+    tutorialCalibrateBtn.classList.add('hidden');
+    updateJoystickVisibility();
+    setTutorialText('PC라면 방향키나 WASD로 움직여보세요. 지금 폰으로 보고 있다면 자이로나 터치를 선택해주세요. 준비되면 다음을 누르세요.', '다음');
+    setJoystickLiftedForPanel(true);
+  });
+
+  function startGame(){
+    resetGame();
+    tutorialActive = false;
+    hideTutorialPanel();
+    hideSpotlight();
+    tutorialExitBtn.classList.add('hidden');
+    setJoystickLiftedForPanel(false);
+    waveEl.style.display = '';
+    scoreEl.style.display = '';
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    hud.classList.remove('hidden');
+    pauseBtn.classList.remove('hidden');
+    running = true; paused = false;
+    updateJoystickVisibility();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+    startMusic();
+  }
+
+  function endGame(){
+    running = false;
+    stopMusic();
+    finalScoreEl.textContent = score;
+    sfxGameOver();
+    if (score > save.bestScore){
+      save.bestScore = score;
+      persistSave();
+    }
+    updateBestScoreDisplay();
+    gameOverScreen.classList.remove('hidden');
+    hud.classList.add('hidden');
+    pauseBtn.classList.add('hidden');
+    updateJoystickVisibility();
+  }
+
+  function pauseGame(){
+    if (!running) return;
+    paused = true;
+    stopMusic();
+    pauseScreen.classList.remove('hidden');
+    updateJoystickVisibility();
+  }
+  function resumeGame(){
+    paused = false;
+    pauseScreen.classList.add('hidden');
+    lastTime = performance.now();
+    updateJoystickVisibility();
+    if (bossActive) startBossMusic(); else startMusic();
+  }
+  function goToMenu(){
+    running = false; paused = false;
+    bossReplayMode = false;
+    waveEl.style.display = '';
+    stopMusic();
+    pauseScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    hud.classList.add('hidden');
+    pauseBtn.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    updateBestScoreDisplay();
+    updateBossReplayButton();
+    updateJoystickVisibility();
+  }
+
+  function startBossReplay(){
+    if (!isBossReplayUnlocked()) return;
+    resetGame();
+    bossReplayMode = true;
+    bossTriggered = true;
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    hud.classList.remove('hidden');
+    pauseBtn.classList.remove('hidden');
+    running = true; paused = false;
+    updateJoystickVisibility();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+    startBossEncounter();
+  }
+  function handleRestart(){
+    if (bossReplayMode) startBossReplay(); else startGame();
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    if (controlMode === 'gyro'){
+      requestGyroPermission();
+    } else {
+      gyroStatus.textContent = '터치 조작 모드 - 화면을 누르고 드래그하세요';
+      gyroStatus.style.color = '#7dd3fc';
+    }
+    startGame();
+  });
+  restartBtn.addEventListener('click', handleRestart);
+  gameOverMenuBtn.addEventListener('click', goToMenu);
+  pauseBtn.addEventListener('click', pauseGame);
+  resumeBtn.addEventListener('click', resumeGame);
+  pauseRestartBtn.addEventListener('click', handleRestart);
+  pauseMenuBtn.addEventListener('click', goToMenu);
+
+  // ---------- Main loop ----------
+  let lastTime = 0;
+  function loop(now){
+    if (!running) return;
+    requestAnimationFrame(loop);
+    if (paused){ lastTime = now; return; }
+    const dt = Math.min(now - lastTime, 40);
+    lastTime = now;
+    if (tutorialActive){
+      tutorialUpdate(dt);
+      draw();
+      return;
+    }
+    elapsed += dt;
+    update(dt);
+    draw();
+  }
+
+  function update(dt){
+    // ---- fire dash state machine (overrides normal movement while active) ----
+    if (fireState === 'charging'){
+      fireTimer -= dt;
+      player.vx *= 0.8; player.vy *= 0.8; // hold roughly in place while charging
+      if (fireTimer <= 0){
+        fireState = 'dashing';
+        fireTimer = fireDashDuration;
+        // lock in the initial dash direction based on whatever direction is being
+        // input right as charging finishes (velocity, else current tilt, else "up")
+        let dx = player.vx, dy = player.vy;
+        let mag = Math.hypot(dx,dy);
+        if (mag < 0.02){ dx = tiltX; dy = tiltY; mag = Math.hypot(dx,dy); }
+        if (mag < 0.02){ dx = 0; dy = -1; mag = 1; }
+        fireDir = {x: dx/mag, y: dy/mag};
+        fireDropTimer = 0;
+      }
+    } else if (fireState === 'dashing'){
+      fireTimer -= dt;
+      // steer the dash live using whatever direction is currently being input,
+      // so the flame trail curves with the player instead of staying a straight line
+      const ix = tiltX, iy = tiltY;
+      const inputMag = Math.hypot(ix, iy);
+      if (inputMag > 0.05){
+        const nx = ix/inputMag, ny = iy/inputMag;
+        fireDir.x += (nx - fireDir.x) * 0.35;
+        fireDir.y += (ny - fireDir.y) * 0.35;
+        const fmag = Math.hypot(fireDir.x, fireDir.y) || 1;
+        fireDir.x /= fmag; fireDir.y /= fmag;
+      }
+      const dashSpeed = fireDashDistance / fireDashDuration; // px per ms
+      player.x = clamp(player.x + fireDir.x * dashSpeed * dt, player.r, W-player.r);
+      player.y = clamp(player.y + fireDir.y * dashSpeed * dt, player.r, H-player.r);
+      fireDropTimer += dt;
+      if (fireDropTimer > 25){
+        fireDropTimer = 0;
+        addZone(player.x, player.y, 18, fireTrailLife, ITEM_COLORS.fire);
+      }
+      if (fireTimer <= 0){
+        fireState = 'idle';
+      }
+    } else {
+      // normal player movement - a light response curve gives finer control at small
+      // tilts while still reaching full speed quickly at larger tilts, for a more
+      // free/precise feel than a straight linear response
+      const shape = t => Math.sign(t) * Math.pow(Math.abs(t), 0.72);
+      const inX = shape(tiltX), inY = shape(tiltY);
+      const accel = 0.0042 * dt * gyroSensitivity;
+      player.vx += inX * accel;
+      player.vy += inY * accel;
+      player.vx *= 0.88;
+      player.vy *= 0.88;
+      const maxV = 0.9;
+      player.vx = clamp(player.vx, -maxV, maxV);
+      player.vy = clamp(player.vy, -maxV, maxV);
+      player.x = clamp(player.x + player.vx*dt, player.r, W-player.r);
+      player.y = clamp(player.y + player.vy*dt, player.r, H-player.r);
+    }
+
+    if (invincible > 0) invincible -= dt;
+
+    // wave progression (frozen while the boss fight is active)
+    if (!bossActive){
+      const newWave = 1 + Math.floor(elapsed/waveDuration);
+      if (newWave !== wave){
+        wave = newWave;
+        if (wave === BOSS_WAVE && !bossTriggered){
+          bossTriggered = true;
+          startBossEncounter();
+        } else {
+          waveBannerTimer = 2200;
+          waveBannerText = 'WAVE ' + wave;
+          waveEl.textContent = 'WAVE ' + wave;
+        }
+      }
+      if (waveBannerTimer > 0) waveBannerTimer -= dt;
+      setMusicIntensity(wave >= 6);
+    }
+
+    if (bossActive){
+      bossUpdate(dt);
+    } else {
+      // difficulty scaling by wave
+      enemySpawnInterval = Math.max(380, 1500 - wave*95);
+      // items stay steady early on, then get noticeably more frequent from the
+      // mid-game onward (wave 5+) down to a lower floor than before
+      itemSpawnInterval = wave <= 4
+        ? Math.max(2400, 3200 - wave*80)
+        : Math.max(1300, 2880 - (wave-4)*180);
+
+      enemySpawnTimer += dt;
+      if (enemySpawnTimer > enemySpawnInterval){
+        enemySpawnTimer = 0;
+        spawnEnemy();
+        if (wave >= 5 && Math.random() < 0.3) spawnEnemy();
+      }
+    }
+    itemSpawnTimer += dt;
+    if (itemSpawnTimer > itemSpawnInterval && items.length < 5){
+      itemSpawnTimer = 0;
+      spawnItem();
+    }
+
+    // buff timers
+    if (bladeTimer > 0) bladeTimer -= dt;
+    if (freezeTimer > 0) freezeTimer -= dt;
+    if (invincibleBuffTimer > 0) invincibleBuffTimer -= dt;
+    updateBuffsUI();
+
+    // tick down per-enemy hit cooldowns regardless of freeze state
+    enemies.forEach(en=>{ if (en.hitCooldown > 0) en.hitCooldown -= dt; });
+
+    // enemy movement (skip while frozen)
+    if (freezeTimer <= 0){
+      enemies.forEach(en=>{
+        const dx = player.x - en.x, dy = player.y - en.y;
+        const d = Math.hypot(dx,dy) || 1;
+        let mx = dx/d, my = dy/d;
+        let speed = en.speedBase;
+
+        if (en.type === 'wanderer'){
+          en.wanderPhase += 0.05;
+          const perpX = -my, perpY = mx;
+          const wobble = Math.sin(en.wanderPhase) * 0.9;
+          mx += perpX*wobble; my += perpY*wobble;
+          const norm = Math.hypot(mx,my) || 1;
+          mx /= norm; my /= norm;
+
+          en.teleTimer -= dt;
+          if (en.teleTimer <= 0){
+            en.teleTimer = rand(2000,3200);
+            if (d > 200){
+              const ang = rand(0,Math.PI*2);
+              const dd = rand(120,180);
+              en.x = clamp(player.x + Math.cos(ang)*dd, en.r, W-en.r);
+              en.y = clamp(player.y + Math.sin(ang)*dd, en.r, H-en.r);
+              addParticles(en.x, en.y, '#9b5de5', 12);
+            }
+          }
+        }
+
+        if (en.type === 'fast'){
+          en.dashTimer -= dt;
+          if (en.dashTimer <= 0){ en.dashActive = 350; en.dashTimer = rand(1200,2000); }
+          if (en.dashActive > 0){ en.dashActive -= dt; speed *= 2.3; }
+        }
+
+        if (en.type === 'tank' && en.hp <= 1){ speed *= 1.6; }
+
+        if (en.type === 'spawner'){
+          en.spawnMinionTimer -= dt;
+          if (en.spawnMinionTimer <= 0){
+            en.spawnMinionTimer = rand(2600,3800);
+            const n = 1 + (Math.random()<0.5 ? 1 : 0);
+            for (let k=0;k<n;k++) spawnMinionNear(en.x, en.y);
+          }
+        }
+
+        en.x += mx * speed * (dt/16);
+        en.y += my * speed * (dt/16);
+      });
+    }
+
+    // blade vs enemies
+    if (bladeTimer > 0){
+      const t = now_();
+      for (let i=0;i<bladeCount;i++){
+        const angle = (t/260) + (i * (Math.PI*2/bladeCount));
+        const bx = player.x + Math.cos(angle)*bladeRadius;
+        const by = player.y + Math.sin(angle)*bladeRadius;
+        enemies = enemies.filter(en=>{
+          if (Math.hypot(en.x-bx, en.y-by) < en.r + 9){
+            return !applyDamage(en, '#4cc9f0');
+          }
+          return true;
+        });
+      }
+    }
+
+    // balls physics
+    balls.forEach(b=>{
+      b.x += b.vx * (dt/16);
+      b.y += b.vy * (dt/16);
+      if (b.x < b.r || b.x > W-b.r) b.vx *= -1;
+      if (b.y < b.r || b.y > H-b.r) b.vy *= -1;
+      b.x = clamp(b.x, b.r, W-b.r);
+      b.y = clamp(b.y, b.r, H-b.r);
+      b.life -= dt;
+    });
+    balls = balls.filter(b=>b.life > 0);
+
+    balls.forEach(b=>{
+      enemies = enemies.filter(en=>{
+        if (Math.hypot(en.x-b.x, en.y-b.y) < en.r + b.r){
+          return !applyDamage(en, '#7cff6b');
+        }
+        return true;
+      });
+    });
+
+    // persistent damage zones (bomb / shield-burst / fire path)
+    zones.forEach(z=>{
+      z.life -= dt;
+      enemies = enemies.filter(en=>{
+        if (Math.hypot(en.x-z.x, en.y-z.y) < z.r + en.r){
+          return !applyDamage(en, z.color);
+        }
+        return true;
+      });
+    });
+    zones = zones.filter(z=>z.life > 0);
+
+    // crackling pop sounds while any fire trail/explosion zone is actively burning
+    const hasFireZone = zones.some(z=>z.color === ITEM_COLORS.fire);
+    if (hasFireZone){
+      fireCrackleTimer -= dt;
+      if (fireCrackleTimer <= 0){
+        sfxFireCrackle();
+        fireCrackleTimer = rand(90, 220);
+      }
+    } else {
+      fireCrackleTimer = 0;
+    }
+
+    lightningBolts.forEach(b=>{ b.life -= dt; });
+    lightningBolts = lightningBolts.filter(b=>b.life > 0);
+
+    // items pickup (disabled mid-dash so you don't grab something while blazing through)
+    if (fireState !== 'dashing'){
+      items = items.filter(it=>{
+        if (Math.hypot(player.x-it.x, player.y-it.y) < player.r + it.r){
+          pickupItem(it);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // burning aura: while charging or dashing, any enemy touching the player burns
+    if (fireState !== 'idle'){
+      for (let i=enemies.length-1;i>=0;i--){
+        const en = enemies[i];
+        if (Math.hypot(player.x-en.x, player.y-en.y) < player.r + en.r + 4){
+          if (applyDamage(en, ITEM_COLORS.fire)) enemies.splice(i,1);
+        }
+      }
+    }
+
+    // player vs enemies (normal collision, only when not currently burning)
+    if (invincible <= 0 && fireState === 'idle'){
+      for (let i=0;i<enemies.length;i++){
+        const en = enemies[i];
+        if (Math.hypot(player.x-en.x, player.y-en.y) < player.r + en.r){
+          if (freezeTimer > 0){
+            if (applyDamage(en, '#a0e9ff')) enemies.splice(i,1);
+          } else if (invincibleBuffTimer > 0){
+            if (applyDamage(en, '#ffd60a')) enemies.splice(i,1);
+          } else if (hasShield){
+            hasShield = false;
+            addParticles(en.x, en.y, '#2ec4b6', 20);
+            enemies.splice(i,1);
+            addScore(ENEMY_TYPES[en.type].score);
+            recordItemKill('shield');
+            addZone(player.x, player.y, 95, 2000, ITEM_COLORS.shield);
+            invincible = 700;
+            sfxBomb();
+            updateBuffsUI();
+          } else {
+            enemies.splice(i,1);
+            hitPlayer();
+          }
+          break;
+        }
+      }
+    }
+
+    // particles
+    particles.forEach(p=>{
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.9; p.vy *= 0.9;
+      p.life -= 0.03;
+    });
+    particles = particles.filter(p=>p.life > 0);
+
+    enemies = enemies.filter(en=> en.x > -60 && en.x < W+60 && en.y > -60 && en.y < H+60);
+  }
+
+  function now_(){ return performance.now(); }
+
+  function pickupItem(it){
+    // eating an item quickly nudges the next one to appear sooner too
+    const timeAlive = elapsed - (it.spawnedAt !== undefined ? it.spawnedAt : elapsed);
+    const fastBonus = clamp(1 - timeAlive/2500, 0, 1);
+    itemSpawnTimer += itemSpawnInterval * (0.3 + fastBonus*0.5);
+
+    sfxPickup();
+    if (ITEM_SFX[it.type]) ITEM_SFX[it.type]();
+
+    if (it.type === 'bomb'){
+      addZone(it.x, it.y, 90, 2000, ITEM_COLORS.bomb);
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.bomb, 20);
+    } else if (it.type === 'blade'){
+      bladeTimer = bladeDuration;
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.blade, 14);
+    } else if (it.type === 'ball'){
+      const n = 5;
+      for (let i=0;i<n;i++){
+        const a = rand(0, Math.PI*2);
+        balls.push({
+          x: it.x, y: it.y, r: 9,
+          vx: Math.cos(a)*rand(2,4), vy: Math.sin(a)*rand(2,4),
+          life: 8000
+        });
+      }
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.ball, 14);
+    } else if (it.type === 'freeze'){
+      freezeTimer = freezeDuration;
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.freeze, 20);
+    } else if (it.type === 'invincible'){
+      invincibleBuffTimer = invincibleBuffDuration;
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.invincible, 20);
+    } else if (it.type === 'shield'){
+      hasShield = true;
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.shield, 20);
+    } else if (it.type === 'fire'){
+      fireState = 'charging';
+      fireTimer = fireChargeDuration;
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.fire, 20);
+    } else if (it.type === 'lightning'){
+      // instantly chain-strikes up to 4 nearby enemies, jumping to the next
+      // nearest target each hop (like real chain lightning)
+      let chainFrom = {x: player.x, y: player.y};
+      const chainPoints = [chainFrom];
+      const hitList = [];
+      for (let hop=0; hop<4; hop++){
+        let best = null, bestD = Infinity;
+        for (let i=0;i<enemies.length;i++){
+          const en = enemies[i];
+          if (hitList.indexOf(en) !== -1) continue;
+          const d = Math.hypot(en.x-chainFrom.x, en.y-chainFrom.y);
+          if (d < bestD && d < 260){ bestD = d; best = en; }
+        }
+        if (!best) break;
+        hitList.push(best);
+        chainPoints.push({x: best.x, y: best.y});
+        chainFrom = {x: best.x, y: best.y};
+      }
+      hitList.forEach(en=>{
+        if (applyDamage(en, ITEM_COLORS.lightning)){
+          const idx = enemies.indexOf(en);
+          if (idx !== -1) enemies.splice(idx,1);
+        }
+      });
+      lightningBolts.push({points: chainPoints, life: 260, maxLife: 260});
+      addScore(5);
+      addParticles(it.x, it.y, ITEM_COLORS.lightning, 20);
+    }
+  }
+
+  function hitPlayer(){
+    lives -= 1;
+    invincible = 1500;
+    addParticles(player.x, player.y, '#ff5566', 16);
+    updateLivesUI();
+    sfxHurt();
+    if (navigator.vibrate) navigator.vibrate(80);
+    if (lives <= 0){
+      endGame();
+    }
+  }
+
+  // ---------- Draw ----------
+  // Draws a small icon matching the item's theme, in local coords centered on
+  // (0,0) - assumes the canvas is already translated/scaled to the item's position.
+  function drawItemGlyph(type){
+    ctx.strokeStyle = '#fff';
+    ctx.fillStyle = '#fff';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (type === 'bomb'){
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(-1,1.5,3.2,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(1,-1); ctx.lineTo(3.5,-3.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(4,-4.5,1,0,Math.PI*2); ctx.fill();
+    } else if (type === 'blade'){
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0,-6); ctx.lineTo(0,3); ctx.stroke();
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-3.5,2); ctx.lineTo(3.5,2); ctx.stroke();
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(0,3); ctx.lineTo(0,6); ctx.stroke();
+    } else if (type === 'ball'){
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(0,0,3.6,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,0,1.1,0,Math.PI*2); ctx.fill();
+    } else if (type === 'freeze'){
+      ctx.lineWidth = 1.4;
+      for (let a=0;a<3;a++){
+        const ang = a*(Math.PI/3);
+        const dx = Math.cos(ang)*5.5, dy = Math.sin(ang)*5.5;
+        ctx.beginPath(); ctx.moveTo(-dx,-dy); ctx.lineTo(dx,dy); ctx.stroke();
+      }
+    } else if (type === 'invincible'){
+      ctx.beginPath();
+      for (let i=0;i<5;i++){
+        const ang = -Math.PI/2 + i*(Math.PI*2/5);
+        const ang2 = ang + Math.PI/5;
+        const x1 = Math.cos(ang)*5.5, y1 = Math.sin(ang)*5.5;
+        const x2 = Math.cos(ang2)*2.3, y2 = Math.sin(ang2)*2.3;
+        if (i===0) ctx.moveTo(x1,y1); else ctx.lineTo(x1,y1);
+        ctx.lineTo(x2,y2);
+      }
+      ctx.closePath(); ctx.fill();
+    } else if (type === 'shield'){
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(0,-6);
+      ctx.lineTo(4.5,-4);
+      ctx.lineTo(4.5,0.5);
+      ctx.quadraticCurveTo(4.5,4.5, 0,6.5);
+      ctx.quadraticCurveTo(-4.5,4.5, -4.5,0.5);
+      ctx.lineTo(-4.5,-4);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (type === 'fire'){
+      ctx.beginPath();
+      ctx.moveTo(0,-6);
+      ctx.bezierCurveTo(3,-2, 4,1, 2.3,4);
+      ctx.bezierCurveTo(4,3, 5,0.5, 5,0.5);
+      ctx.bezierCurveTo(6.5,4, 4.5,7, 0,7);
+      ctx.bezierCurveTo(-4.5,7, -6,3, -4,-0.5);
+      ctx.bezierCurveTo(-3.3,1.5, -2,2, -2,2);
+      ctx.bezierCurveTo(-3,-1, -1.5,-3.5, 0,-6);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'lightning'){
+      ctx.beginPath();
+      ctx.moveTo(1.5,-6);
+      ctx.lineTo(-3,1);
+      ctx.lineTo(0,1);
+      ctx.lineTo(-1.5,6);
+      ctx.lineTo(4,-1.5);
+      ctx.lineTo(1,-1.5);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-5,0); ctx.lineTo(5,0);
+      ctx.moveTo(0,-5); ctx.lineTo(0,5);
+      ctx.stroke();
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#05060a';
+    ctx.fillRect(0,0,W,H);
+
+    if (freezeTimer > 0){
+      ctx.fillStyle = 'rgba(160,233,255,0.06)';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // persistent zones
+    zones.forEach(z=>{
+      const pulse = 1 + Math.sin(now_()/90)*0.06;
+      ctx.globalAlpha = Math.max(0.15, 0.5 * (z.life/z.maxLife));
+      ctx.fillStyle = z.color;
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, z.r*pulse, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = z.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, z.r*pulse, 0, Math.PI*2);
+      ctx.stroke();
+    });
+
+    // chain lightning flash
+    lightningBolts.forEach(b=>{
+      const alpha = b.life / b.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = ITEM_COLORS.lightning;
+      ctx.shadowColor = ITEM_COLORS.lightning;
+      ctx.shadowBlur = 14;
+      ctx.lineWidth = 3;
+      for (let i=0;i<b.points.length-1;i++){
+        const p1 = b.points[i], p2 = b.points[i+1];
+        const midX = (p1.x+p2.x)/2 + (Math.random()-0.5)*18;
+        const midY = (p1.y+p2.y)/2 + (Math.random()-0.5)*18;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(midX, midY);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    });
+
+    // items: white ring + cross mark so they read as "pickups", never confused with enemies
+    items.forEach(it=>{
+      it.pulse += 0.05;
+      const pulse = 1 + Math.sin(it.pulse)*0.12;
+      ctx.save();
+      ctx.translate(it.x, it.y);
+      ctx.scale(pulse, pulse);
+      const color = ITEM_COLORS[it.type];
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(0,0,it.r,0,Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0,0,it.r,0,Math.PI*2);
+      ctx.stroke();
+      drawItemGlyph(it.type);
+      ctx.restore();
+    });
+
+    // balls: drawn as a spinning diamond with a motion trail so they never
+    // read as a small circular enemy (fast type) at a glance
+    balls.forEach(b=>{
+      const speed = Math.hypot(b.vx, b.vy) || 0.01;
+      const trailLen = b.r * 2.4;
+      ctx.strokeStyle = '#7cff6b';
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = b.r * 0.9;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - (b.vx/speed)*trailLen, b.y - (b.vy/speed)*trailLen);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      const angle = now_()/140;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#7cff6b';
+      ctx.shadowColor = '#7cff6b';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, -b.r*1.3);
+      ctx.lineTo(b.r*1.3, 0);
+      ctx.lineTo(0, b.r*1.3);
+      ctx.lineTo(-b.r*1.3, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    });
+    ctx.shadowBlur = 0;
+
+    // enemies: dark outline + menacing "eye" so they read as threats, never confused with items
+    enemies.forEach(en=>{
+      const def = ENEMY_TYPES[en.type];
+      const enraged = en.type === 'tank' && en.hp <= 1;
+      const dashing = en.type === 'fast' && en.dashActive > 0;
+      const color = enraged ? '#ff2d3e' : def.color;
+
+      if (dashing){
+        ctx.strokeStyle = def.color;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = en.r*0.8;
+        ctx.beginPath();
+        ctx.moveTo(en.x, en.y);
+        const dx=player.x-en.x, dy=player.y-en.y, d=Math.hypot(dx,dy)||1;
+        ctx.lineTo(en.x - (dx/d)*18, en.y - (dy/d)*18);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      if (en.type === 'spawner'){
+        const pulse = 1 + Math.sin(now_()/220)*0.18;
+        ctx.strokeStyle = def.color;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(en.x, en.y, (en.r+10)*pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = enraged ? 20 : 12;
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, en.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, en.r, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(10,5,10,0.8)';
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, Math.max(3, en.r*0.32), 0, Math.PI*2);
+      ctx.fill();
+
+      if (en.maxHp > 1){
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(en.x, en.y, en.r + 4, -Math.PI/2, -Math.PI/2 + (Math.PI*2 * en.hp/en.maxHp));
+        ctx.stroke();
+      }
+      if (freezeTimer > 0){
+        ctx.fillStyle = 'rgba(160,233,255,0.45)';
+        ctx.beginPath();
+        ctx.arc(en.x, en.y, en.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('❄', en.x, en.y - en.r - 6);
+      }
+    });
+    ctx.shadowBlur = 0;
+
+    // particles
+    particles.forEach(p=>{
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(p.life,0);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // blades
+    if (bladeTimer > 0){
+      const t = now_();
+      for (let i=0;i<bladeCount;i++){
+        const angle = (t/260) + (i * (Math.PI*2/bladeCount));
+        const bx = player.x + Math.cos(angle)*bladeRadius;
+        const by = player.y + Math.sin(angle)*bladeRadius;
+        ctx.strokeStyle = '#4cc9f0';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#4cc9f0';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.fillStyle = '#4cc9f0';
+        ctx.beginPath();
+        ctx.arc(bx, by, 6, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    if (hasShield){
+      ctx.strokeStyle = '#2ec4b6';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#2ec4b6';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r + 10, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    if (invincibleBuffTimer > 0){
+      const warning = invincibleBuffTimer <= 1500;
+      const blinkOn = !warning || Math.floor(now_()/120)%2===0;
+      if (blinkOn){
+        const pulse = 1 + Math.sin(now_()/120)*0.15;
+        ctx.strokeStyle = '#ffd60a';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ffd60a';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, (player.r + 16) * pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // fire charge/dash aura around player
+    if (fireState === 'charging'){
+      const t = 1 - clamp(fireTimer / fireChargeDuration, 0, 1);
+      ctx.strokeStyle = ITEM_COLORS.fire;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = ITEM_COLORS.fire;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r + 6 + t*14, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if (fireState === 'dashing'){
+      ctx.strokeStyle = ITEM_COLORS.fire;
+      ctx.lineWidth = 5;
+      ctx.shadowColor = ITEM_COLORS.fire;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r + 6, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    const blink = invincible > 0 && Math.floor(now_()/100)%2===0;
+    if (!blink){
+      ctx.fillStyle = '#ff2d3e';
+      ctx.shadowColor = '#ff2d3e';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    if (waveBannerTimer > 0){
+      const alpha = Math.min(1, waveBannerTimer / 400, (2200-waveBannerTimer+400)/400);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.fillStyle = '#c9a7ff';
+      ctx.font = '700 34px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#c9a7ff';
+      ctx.shadowBlur = 20;
+      ctx.fillText(waveBannerText, W/2, H*0.32);
+      ctx.restore();
+    }
+
+    // freeze countdown warning during the last 3 seconds
+    if (freezeTimer > 0 && freezeTimer <= 3000){
+      const secs = Math.ceil(freezeTimer / 1000);
+      const pulse = 1 + Math.sin(now_()/90) * 0.12;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#a0e9ff';
+      ctx.font = '700 ' + Math.round(30*pulse) + 'px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#a0e9ff';
+      ctx.shadowBlur = 18;
+      ctx.fillText('❄ ' + secs, W/2, H/2);
+      ctx.restore();
+    }
+
+    if (bossActive) drawBoss();
+  }
+
+  // Draws a segmented mechanical arm (shoulder -> elbow joint -> claw) instead of a
+  // plain line, for a more robotic silhouette. Used for idle arms, the exhausted
+  // arm, and the arm-thrust attack hazard.
+  function drawMechArm(ox, oy, tx, ty, color, thick){
+    const midX = (ox+tx)/2 + (ty-oy)*0.15;
+    const midY = (oy+ty)/2 - (tx-ox)*0.15;
+    ctx.strokeStyle = color; ctx.lineWidth = thick; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ox,oy); ctx.lineTo(midX,midY); ctx.lineTo(tx,ty);
+    ctx.stroke();
+    // elbow joint
+    ctx.fillStyle = '#1c2029';
+    ctx.beginPath(); ctx.arc(midX, midY, thick*0.45, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#7c8695'; ctx.lineWidth = 2; ctx.stroke();
+    // claw fingers at the tip
+    const angle = Math.atan2(ty-midY, tx-midX);
+    ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, thick*0.35); ctx.lineCap = 'round';
+    [-0.5, 0, 0.5].forEach(off=>{
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx+Math.cos(angle+off)*16, ty+Math.sin(angle+off)*16);
+      ctx.stroke();
+    });
+  }
+
+  function drawBoss(){
+    const bcx = bossX, bcy = bossHeadY + 90;
+    const t = now_();
+
+    // telegraphs (warnings before an attack fires)
+    bossTelegraphs.forEach(tg=>{
+      const flashOn = tg.timer < 220 ? (Math.floor(t/60)%2===0) : true;
+      if (!flashOn) return;
+      ctx.strokeStyle = '#ff5566';
+      ctx.globalAlpha = 0.8;
+      ctx.setLineDash([10,8]);
+      ctx.lineWidth = tg.kind === 'line' ? 5 : 3;
+      ctx.beginPath();
+      if (tg.kind === 'line') { ctx.moveTo(tg.x1,tg.y1); ctx.lineTo(tg.x2,tg.y2); }
+      else { ctx.arc(tg.x, tg.y, tg.r, 0, Math.PI*2); }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    });
+
+    // hazards
+    bossHazards.forEach(hz=>{
+      if (hz.kind === 'drill'){
+        const tt = clamp(hz.progress,0,1);
+        const x = hz.axis==='h' ? tt*W : hz.pos;
+        const y = hz.axis==='h' ? hz.pos : tt*H;
+        ctx.fillStyle = '#9ca3af';
+        ctx.shadowColor = '#fff'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.arc(x,y,22,0,Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+      } else if (hz.kind === 'shockwave'){
+        ctx.strokeStyle = '#ff5566';
+        ctx.globalAlpha = Math.max(0.15, hz.life/hz.maxLife);
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(hz.x,hz.y,hz.r,0,Math.PI*2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (hz.kind === 'armThrust'){
+        const p = clamp(hz.progress, 0, 1);
+        const ex = bcx + (hz.x-bcx) * Math.min(1, p*2);
+        const ey = bcy + (hz.y-bcy) * Math.min(1, p*2);
+        drawMechArm(bcx, bcy, ex, ey, '#9ca3af', 18);
+      } else if (hz.kind === 'ring'){
+        if (hz.elapsed < hz.chargeDelay) return; // not visible until it starts charging
+        const midR = (hz.rInner+hz.rOuter)/2;
+        const width = hz.rOuter - hz.rInner;
+        if (!hz.popped){
+          const c = hz.charge;
+          ctx.strokeStyle = 'rgba(255,' + Math.round(90*(1-c)) + ',' + Math.round(90*(1-c)) + ',' + (0.22+c*0.5) + ')';
+          ctx.lineWidth = width;
+          ctx.beginPath(); ctx.arc(hz.bcx, hz.bcy, midR, 0, Math.PI*2); ctx.stroke();
+        } else if (hz.popFade > 0){
+          ctx.strokeStyle = 'rgba(255,255,255,' + (hz.popFade/350) + ')';
+          ctx.lineWidth = width * 1.15;
+          ctx.beginPath(); ctx.arc(hz.bcx, hz.bcy, midR, 0, Math.PI*2); ctx.stroke();
+        }
+      } else if (hz.kind === 'orbitBeam'){
+        const cx = W/2, cy = H/2;
+        const len = Math.max(W,H);
+        ctx.strokeStyle = '#ffd60a';
+        ctx.lineWidth = 4; ctx.setLineDash([6,5]);
+        ctx.beginPath(); ctx.arc(cx, cy, 50, 0, Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#ff3b3b'; ctx.lineWidth = 12;
+        ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 20;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx+Math.cos(hz.angle)*len, cy+Math.sin(hz.angle)*len);
+        ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      }
+    });
+
+    // phase 2 pillars
+    if (bossPillarActive){
+      bossPillars.forEach(p=>{
+        if (p.destroyed) return;
+        ctx.fillStyle = '#4b5563';
+        ctx.strokeStyle = '#1c2029'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        const dmg = 1 - p.hp/p.maxHp;
+        if (dmg > 0){
+          ctx.strokeStyle = 'rgba(255,60,60,0.85)'; ctx.lineWidth = 2;
+          const cracks = Math.ceil(dmg*3);
+          for (let i=0;i<cracks;i++){
+            const a = (i/3)*Math.PI*2 + p.x*0.01;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x+Math.cos(a)*p.r*0.9, p.y+Math.sin(a)*p.r*0.9);
+            ctx.stroke();
+          }
+        }
+      });
+    }
+
+    // giant robot head - armored octagonal plate with gradient shading, rivets,
+    // an antenna, a glowing visor, and vent slits for a more mechanical look
+    ctx.save();
+    const headGrad = ctx.createLinearGradient(bcx-BOSS_R, bossHeadY-BOSS_R, bcx+BOSS_R, bossHeadY+BOSS_R);
+    headGrad.addColorStop(0, '#5a6272');
+    headGrad.addColorStop(0.55, '#333947');
+    headGrad.addColorStop(1, '#181b22');
+    ctx.fillStyle = headGrad;
+    ctx.strokeStyle = bossInvincible ? '#ffd60a' : '#12151b';
+    ctx.lineWidth = bossInvincible ? 6 : 5;
+    ctx.beginPath();
+    for (let i=0;i<8;i++){
+      const a = Math.PI/8 + i*(Math.PI/4);
+      const x = bcx+Math.cos(a)*BOSS_R, y = bossHeadY+Math.sin(a)*BOSS_R;
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (bossInvincible){
+      ctx.strokeStyle = 'rgba(255,214,10,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(bcx, bossHeadY, BOSS_R+10+Math.sin(t/120)*4, 0, Math.PI*2); ctx.stroke();
+    }
+    // panel seam + rivets
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(bcx-BOSS_R*0.72, bossHeadY+18); ctx.lineTo(bcx+BOSS_R*0.72, bossHeadY+18); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    [[-0.58,-0.08],[0.58,-0.08],[-0.32,0.58],[0.32,0.58]].forEach(([dx,dy])=>{
+      ctx.beginPath(); ctx.arc(bcx+dx*BOSS_R, bossHeadY+dy*BOSS_R, 3, 0, Math.PI*2); ctx.fill();
+    });
+    // antenna with a blinking tip light
+    ctx.strokeStyle = '#6b7280'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(bcx, bossHeadY-BOSS_R); ctx.lineTo(bcx, bossHeadY-BOSS_R-22); ctx.stroke();
+    ctx.fillStyle = Math.floor(t/300)%2===0 ? '#ff5566' : '#7a1c26';
+    ctx.shadowColor = '#ff5566'; ctx.shadowBlur = Math.floor(t/300)%2===0 ? 10 : 0;
+    ctx.beginPath(); ctx.arc(bcx, bossHeadY-BOSS_R-22, 5, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // visor - dark band with glowing eye slits
+    ctx.fillStyle = '#0d0f13';
+    ctx.fillRect(bcx-56, bossHeadY+36, 112, 28);
+    const eyeGlow = bossState === 'charging' ? (0.5+bossChargeVisual*0.5) : 0.65;
+    ctx.fillStyle = 'rgba(255,70,70,' + eyeGlow + ')';
+    ctx.shadowColor = '#ff5566'; ctx.shadowBlur = 16;
+    ctx.fillRect(bcx-47, bossHeadY+44, 34, 12);
+    ctx.fillRect(bcx+13, bossHeadY+44, 34, 12);
+    ctx.shadowBlur = 0;
+    // mouth vents
+    ctx.strokeStyle = 'rgba(255,150,60,0.75)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.shadowColor = '#ff9f1c'; ctx.shadowBlur = 8;
+    for (let i=-1;i<=1;i++){
+      ctx.beginPath(); ctx.moveTo(bcx+i*11, bossHeadY+82); ctx.lineTo(bcx+i*11, bossHeadY+98); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // mechanical arms - segmented (shoulder->elbow->claw) for a more robotic silhouette
+    const armSwing = Math.sin(t/500) * 20;
+    if (!(bossExhausted && bossExhaustedArmSide === -1)){
+      drawMechArm(bcx-BOSS_R+20, bossHeadY+40, bcx-BOSS_R-30, bossHeadY+130+armSwing, '#4b5563', 16);
+    }
+    if (!(bossExhausted && bossExhaustedArmSide === 1)){
+      drawMechArm(bcx+BOSS_R-20, bossHeadY+40, bcx+BOSS_R+30, bossHeadY+130-armSwing, '#4b5563', 16);
+    }
+
+    // exhausted arm - extended out, glowing green, hittable
+    if (bossExhausted){
+      const ax = bcx + bossExhaustedArmSide*(BOSS_R+150);
+      const ay = bossHeadY+240;
+      drawMechArm(bcx + bossExhaustedArmSide*(BOSS_R-20), bossHeadY+40, ax, ay, '#7cff6b', 20);
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(bossArmHitsTaken + '/' + BOSS_ARM_HITS_TO_RECOVER, ax, ay-40);
+      ctx.fillStyle = '#7cff6b';
+      ctx.font = '700 13px -apple-system, sans-serif';
+      ctx.shadowColor = '#7cff6b'; ctx.shadowBlur = 10;
+      ctx.fillText('팔이 지쳤다! 팔을 공격하세요', bcx, bossHeadY + BOSS_R + 26);
+      ctx.shadowBlur = 0;
+    }
+
+    // HP bar (top of screen)
+    const barX = 16, barY = 10 + (window.visualViewport ? 0 : 0), barW = W-32, barH = 14;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(barX, barY, barW, barH);
+    const hpPct = clamp(bossHp/bossMaxHp, 0, 1);
+    ctx.fillStyle = bossPhase === 2 ? '#ff5566' : '#ffb703';
+    ctx.fillRect(barX, barY, barW*hpPct, barH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('BOSS  PHASE ' + bossPhase, W/2, barY + barH + 15);
+
+    // phase/intro banner
+    if (bossPhaseBannerTimer > 0){
+      const alpha = Math.min(1, bossPhaseBannerTimer/300, (2200-bossPhaseBannerTimer+300)/300);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.fillStyle = '#ff5566';
+      ctx.font = '800 40px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ff5566';
+      ctx.shadowBlur = 24;
+      ctx.fillText(bossPhaseBannerText, W/2, H*0.34);
+      ctx.restore();
+    }
+  }
+})();
+</script>
+</body>
+</html>
