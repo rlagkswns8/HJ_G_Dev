@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마음의 편지함 - 관리자 전용</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #05060a; color: #dfe4ea;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh; padding: 20px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { font-size: 12px; color: #6b7280; margin: 0 0 18px; }
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  button {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    color: #dfe4ea; border-radius: 10px; padding: 9px 14px; font-size: 13px; cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,0.14); }
+  button.primary { background: linear-gradient(135deg, #ff5566, #ff8a5b); border: none; color: #fff; font-weight: 700; }
+  button.danger { background: rgba(255,85,102,0.18); border-color: rgba(255,85,102,0.4); color: #ff8a8a; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 12px 14px; cursor: pointer; text-align: left; width: 100%;
+  }
+  .row:hover { background: rgba(255,255,255,0.09); }
+  .row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; }
+  .row .meta { flex: 1; min-width: 0; }
+  .row .date { font-size: 10.5px; color: #6b7280; }
+  .row .name { font-size: 13px; font-weight: 700; color: #fff; margin: 2px 0; }
+  .row .preview {
+    font-size: 12px; color: #9aa4b2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .empty, .loading { color: #6b7280; font-size: 13px; padding: 30px 0; text-align: center; }
+  .detail {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 18px;
+  }
+  .detail .date { font-size: 11px; color: #6b7280; }
+  .detail .name { font-size: 16px; font-weight: 700; color: #fff; margin: 4px 0 14px; }
+  .detail .content { font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .hidden { display: none; }
+  .count-badge {
+    background: rgba(255,255,255,0.1); border-radius: 20px; padding: 4px 10px; font-size: 12px;
+  }
+  #statusMsg { font-size: 12px; margin-top: 10px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<h1>📮 마음의 편지함 - 관리자 전용</h1>
+<p class="sub">이 페이지는 게임과 별도로만 보관하세요. 링크는 어디에도 공개하지 마세요.</p>
+
+<div id="listView">
+  <div class="toolbar">
+    <button id="selectModeBtn">☑ 선택 모드</button>
+    <button id="deleteSelectedBtn" class="danger hidden">🗑 선택 삭제 (<span id="selCount">0</span>)</button>
+    <button id="refreshBtn">🔄 새로고침</button>
+    <span class="count-badge" id="totalCount">총 0통</span>
+  </div>
+  <div id="listContainer" class="list">
+    <div class="loading">불러오는 중...</div>
+  </div>
+</div>
+
+<div id="detailView" class="hidden">
+  <button id="backBtn">← 목록으로</button>
+  <div class="detail" style="margin-top:14px;">
+    <div class="date" id="detailDate"></div>
+    <div class="name" id="detailName"></div>
+    <div class="content" id="detailContent"></div>
+  </div>
+  <button id="deleteOneBtn" class="danger" style="margin-top:14px;">🗑 이 편지 삭제</button>
+</div>
+
+<p id="statusMsg"></p>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAR0gqV4i4cV4yMwKIF7ork-qz0rdmAhyA",
+  authDomain: "gyro-game-60ce2.firebaseapp.com",
+  projectId: "gyro-game-60ce2",
+  storageBucket: "gyro-game-60ce2.firebasestorage.app"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let letters = [];
+let selectMode = false;
+let selectedIds = new Set();
+
+const listContainer = document.getElementById('listContainer');
+const listView = document.getElementById('listView');
+const detailView = document.getElementById('detailView');
+const statusMsg = document.getElementById('statusMsg');
+const selectModeBtn = document.getElementById('selectModeBtn');
+const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+const selCount = document.getElementById('selCount');
+const totalCount = document.getElementById('totalCount');
+
+function setStatus(text, color){
+  statusMsg.textContent = text;
+  statusMsg.style.color = color || '';
+}
+
+function formatDate(ts){
+  if (!ts) return '(시각 없음)';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '.' + pad(d.getMonth()+1) + '.' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function loadLetters(){
+  listContainer.innerHTML = '<div class="loading">불러오는 중...</div>';
+  setStatus('', '');
+  try {
+    const snap = await db.collection('letters').orderBy('ts', 'desc').get();
+    letters = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderList();
+  } catch (e){
+    listContainer.innerHTML = '<div class="empty">불러오기 실패: ' + e.message + '</div>';
+  }
+}
+
+function renderList(){
+  totalCount.textContent = '총 ' + letters.length + '통';
+  if (letters.length === 0){
+    listContainer.innerHTML = '<div class="empty">아직 도착한 편지가 없어요.</div>';
+    return;
+  }
+  listContainer.innerHTML = '';
+  letters.forEach(letter => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const checked = selectedIds.has(letter.id);
+    row.innerHTML =
+      (selectMode ? '<input type="checkbox" ' + (checked ? 'checked' : '') + ' data-id="' + letter.id + '">' : '') +
+      '<div class="meta">' +
+        '<div class="date">' + formatDate(letter.ts) + '</div>' +
+        '<div class="name">' + escapeHtml(letter.name || '익명') + '</div>' +
+        '<div class="preview">' + escapeHtml((letter.content || '').replace(/\n/g,' ')) + '</div>' +
+      '</div>';
+    if (selectMode){
+      const cb = row.querySelector('input[type=checkbox]');
+      cb.addEventListener('click', e => e.stopPropagation());
+      cb.addEventListener('change', () => {
+        if (cb.checked) selectedIds.add(letter.id);
+        else selectedIds.delete(letter.id);
+        updateSelectionUI();
+      });
+      row.addEventListener('click', () => { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+    } else {
+      row.addEventListener('click', () => openDetail(letter));
+    }
+    listContainer.appendChild(row);
+  });
+}
+
+function escapeHtml(s){
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function updateSelectionUI(){
+  selCount.textContent = selectedIds.size;
+  deleteSelectedBtn.classList.toggle('hidden', selectedIds.size === 0);
+}
+
+selectModeBtn.addEventListener('click', () => {
+  selectMode = !selectMode;
+  selectedIds.clear();
+  selectModeBtn.textContent = selectMode ? '✕ 선택 취소' : '☑ 선택 모드';
+  updateSelectionUI();
+  renderList();
+});
+
+deleteSelectedBtn.addEventListener('click', async () => {
+  if (selectedIds.size === 0) return;
+  if (!confirm(selectedIds.size + '통의 편지를 삭제할까요? 되돌릴 수 없어요.')) return;
+  setStatus('삭제 중...', '#9aa4b2');
+  try {
+    await Promise.all(Array.from(selectedIds).map(id => db.collection('letters').doc(id).delete()));
+    setStatus('✅ 삭제 완료', '#7cff6b');
+    selectMode = false;
+    selectedIds.clear();
+    selectModeBtn.textContent = '☑ 선택 모드';
+    updateSelectionUI();
+    await loadLetters();
+  } catch (e){
+    setStatus('삭제 실패: ' + e.message, '#ff5566');
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click', loadLetters);
+
+let currentDetail = null;
+function openDetail(letter){
+  currentDetail = letter;
+  document.getElementById('detailDate').textContent = formatDate(letter.ts);
+  document.getElementById('detailName').textContent = letter.name || '익명';
+  document.getElementById('detailContent').textContent = letter.content || '';
+  listView.classList.add('hidden');
+  detailView.classList.remove('hidden');
+}
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  detailView.classList.add('hidden');
+  listView.classList.remove('hidden');
+  setStatus('', '');
+});
+
+document.getElementById('deleteOneBtn').addEventListener('click', async () => {
+  if (!currentDetail) return;
+  if (!confirm('이 편지를 삭제할까요? 되돌릴 수 없어요.')) return;
+  setStatus('삭제 중...', '#9aa4b2');
+  try {
+    await db.collection('letters').doc(currentDetail.id).delete();
+    detailView.classList.add('hidden');
+    listView.classList.remove('hidden');
+    setStatus('✅ 삭제 완료', '#7cff6b');
+    await loadLetters();
+  } catch (e){
+    setStatus('삭제 실패: ' + e.message, '#ff5566');
+  }
+});
+
+loadLetters();
+</script>
+</body>
+</html>
