@@ -1,4 +1,4 @@
-<!-- 자이로 서바이벌 - CURRENT VERSION: v26.1 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
+<!-- 자이로 서바이벌 - CURRENT VERSION: v26.2 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -174,7 +174,7 @@
 
 <div class="overlay" id="startScreen">
   <div id="devModeLabel" class="hidden" style="position:absolute; top:6px; left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
-  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v26.1</span></h1>
+  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v26.2</span></h1>
   <p id="bestScoreLine" style="font-size:14px; color:#ffd166; font-weight:700; margin: 0 0 4px;">최고 점수: 0</p>
   <p style="margin-bottom:2px;">휴대폰을 기울여서 빨간 점을 움직이세요.<br>웨이브가 지날수록 적이 강해집니다. 아이템을 먹고 살아남으세요!</p>
 
@@ -336,6 +336,13 @@
 <div class="overlay hidden" id="patchNotesScreen">
   <h2>📋 패치노트</h2>
   <div id="patchNotesList" style="width:100%; max-width:340px; max-height:66vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+    <div class="patch-entry">
+      <div class="patch-version">v26.2</div>
+      <div class="patch-date">2026-08-28 14:00</div>
+      <ul class="patch-list">
+        <li>물결 아이템 가로 폭 1.4배로 확대 (판정 폭 138 → 193, 시각 효과도 동일 비율로 같이 커짐)</li>
+      </ul>
+    </div>
     <div class="patch-entry">
       <div class="patch-version">v26.1</div>
       <div class="patch-date">2026-08-28 13:50</div>
@@ -8542,7 +8549,7 @@
       const duration = 1300;
       waterWaves.push({
         x: player.x, y: player.y, dirX, dirY, maxDist,
-        progress: 0, duration, perpWidth: 138, hit: new Set()
+        progress: 0, duration, perpWidth: 193, hit: new Set() // was 138 - 1.4x wider
       });
       // staggered whoosh bursts spread across the whole travel time, so the
       // "shhh" sound keeps going for as long as the wave is actually moving
