@@ -1,9 +1,19 @@
-<!-- 자이로 서바이벌 - CURRENT VERSION: v34.55 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
+<!-- 자이로 서바이벌 - CURRENT VERSION: v34.60 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- Without these three, iOS doesn't treat a home-screen launch as a real
+     standalone app - it can end up in an in-between state where the status
+     bar overlaps the page instead of pushing it down, but env(safe-area-
+     inset-top) still reports 0 because iOS never switched into the mode that
+     makes that value meaningful. Every fixed/padded element in this file
+     already uses env(safe-area-inset-top/bottom, 0px) correctly - they just
+     never got a non-zero number to work with on a home-screen launch. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>자이로 서바이벌</title>
 <style>
   @keyframes tutorialPulse {
@@ -221,7 +231,7 @@
 
 <div class="overlay" id="startScreen">
   <div id="devModeLabel" class="hidden" style="position:absolute; top:6px; left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
-  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v34.55</span></h1>
+  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v34.60</span></h1>
   <p id="bestScoreLine" style="font-size:14px; color:#ffd166; font-weight:700; margin: 0 0 4px;">최고 점수: 0</p>
   <div id="mpConnectedChip" class="hidden" style="display:inline-flex; align-items:center; gap:8px; margin:2px 0 6px; padding:5px 6px 5px 12px; border-radius:14px; background:rgba(124,255,107,0.12); border:1px solid rgba(124,255,107,0.4);">
     <span style="width:7px; height:7px; border-radius:50%; background:#7cff6b; box-shadow:0 0 6px #7cff6b;"></span>
@@ -506,6 +516,55 @@
   <div id="patchNotesList" style="width:100%; max-width:340px; max-height:66vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
     <div class="patch-entry major">
       <span class="patch-major-badge">🌟 대형 업데이트</span>
+      <div class="patch-version">v34.60</div>
+      <div class="patch-date">2026-09-01 09:40</div>
+      <ul class="patch-list">
+        <li>📱 <b>아이폰 홈 화면 앱으로 실행 시 튜토리얼·인게임 상단이 잘리던 문제 수정</b> - 화면 곳곳의 상단 여백은 전부 <code>safe-area-inset-top</code>이라는 값을 기준으로 이미 계산되고 있었는데, 홈 화면에 추가해서 실행할 때 iOS가 이 앱을 "진짜 독립 실행 앱"으로 인식하게 만드는 메타 태그가 빠져 있었어요. 그래서 그 값 자체가 항상 0으로 취급돼서 상단 여백 계산이 무의미해졌던 거예요. 필요한 메타 태그 3개를 추가했어요 - 기존 화면 로직은 손댈 필요가 없었어요</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v34.59</div>
+      <div class="patch-date">2026-09-01 09:00</div>
+      <ul class="patch-list">
+        <li>☄️ <b>운석 자기 피해를 완전히 제거</b> - v34.57에서는 "폭발 범위 안에 서 있으면 맞는다"는 위험 요소는 그대로 두고 타겟이 없을 때의 낙하 위치만 자기 자신 밖으로 옮겼는데, 되짚어보니 <b>자기 아이템에 자기가 맞는다는 것 자체가 말이 안 되는 설계</b>였어요. 낙하 위치 로직은 원래대로 되돌리고, 운석이 캐스터에게 피해를 주는 코드 자체를 들어냈어요 - 이제 범위 안에 서 있어도 안전해요. 몹·보스 약점 피해는 그대로예요</li>
+        <li>🛠 <b>개발자 모드에서 업적 관련 수치 자체가 안 쌓이도록 확장</b> - 지난 버전은 업적이 "발동"되는 것만 막았는데, 처치 수·하트 획득 수·웨이브 최고 기록 같은 <b>누적 수치는 여전히 쌓이고</b> 있었어요. 그래서 다음에 정상 플레이할 때 그 누적치가 기준을 넘어서 있으면 바로 깨질 수 있었죠. 이제 개발자 모드가 한 번이라도 켜졌던 판에서는 이 수치들 자체가 증가하지 않아요(보스 처치 수, 아이템별 처치 수, 방패병/네크로 특수 처치 수, 콤보, 무피해/한목숨 클리어, 하트 획득, 웨이브 최고 기록, 도감 발견까지 전부)</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v34.58</div>
+      <div class="patch-date">2026-09-01 08:15</div>
+      <ul class="patch-list">
+        <li>🛠 <b>개발자 모드 - 5의 배수 웨이브를 고르면 바로 보스전으로 진입</b> - 원래는 시작 웨이브를 5·10·15로 맞춰도 그냥 그 번호로 일반 웨이브가 흘러갈 뿐, 보스전은 시작되지 않았어요. 보스 진입 판정이 "웨이브 번호가 막 바뀌는 순간"만 보고 있었는데, 시작할 때부터 그 번호로 맞춰버리면 "막 바뀌는 순간" 자체가 없었던 거예요. 이제 보스 웨이브를 고르면 그 즉시 해당 보스전으로 들어가요</li>
+        <li>❄️ <b>개발자 무적 상태에서도 얼려있는 적을 몸으로 부딪혀 처치 가능</b> - 보호막과 같은 이유로 막혀 있었어요. 마찬가지로 얼음 상태가 아닐 땐 기존처럼 완전 무적이라 안전해요</li>
+        <li>🏆 <b>개발자 모드에서 스킨 업적이 깨지던 문제 수정</b> - 점수 기반 업적("최고 점수 경신")만 개발자 모드에서 막혀 있었고, 그 외 업적(보스 무피해 클리어, 몹 처치 수, 하트 획득 수 등)은 전혀 막혀 있지 않아서 무적·체력 슬라이더·속도 조절 중에도 그냥 깨지고 있었어요. 업적 판정 함수 자체에 막음 장치를 달아서 한 번에 다 막았어요. 다만 <b>기록되는 수치 자체(처치 수 등)는 계속 쌓여요</b> - 다음에 개발자 모드 없이 플레이할 때 그 누적치로 바로 깨질 수 있으니, 완전히 리셋하려면 수동으로 초기화가 필요해요</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v34.57</div>
+      <div class="patch-date">2026-09-01 07:30</div>
+      <ul class="patch-list">
+        <li>☄️ <b>운석이 항상 스스로를 맞히던 문제 수정</b> - 필드에 노릴 적이 하나도 없을 때, <b>운석이 정확히 자기 자신의 위치</b>로 떨어지도록 되어 있었어요. "범위 안에 서 있으면 맞는다"는 원래 의도된 위험 요소인데, 타겟이 없을 땐 그 범위의 정중앙이 항상 자기 자리였던 거예요. 이제 타겟이 없으면 폭발 범위 밖의 빈 자리를 골라요 - 싱글·멀티 둘 다 해당돼요</li>
+        <li>🔊 <b>같이하기에서 게스트가 자기 스킨의 특수 이동 소리를 못 듣던 문제 수정</b> - 이 소리를 트리거하는 코드가 방장 전용 갱신 루프 안에만 있었어요. 방장은 항상 그 루프를 도니까 괜찮았는데, 게스트는 완전히 다른(더 가벼운) 루프를 도니까 이 부분이 통째로 빠져 있었던 거예요</li>
+        <li>🌀 <b>게스트 파동 이펙트가 안쪽이 색칠된 것처럼 다르게 보이던 문제 수정</b> - 내 파동은 매 틱마다 작은 파티클만 튀는데, 파트너(게스트)의 파동은 방장 쪽에서 처리될 때 전체 범위를 색칠하는 큰 도형으로 그려지고 있었어요. 원래 이펙트에 맞춰 파티클로 통일했어요</li>
+        <li>🛡 <b>개발자 무적 상태에서도 보호막이 터지도록 변경</b> - 보호막을 가지고 있을 때만 예외적으로 열어뒀어요. 보호막이 없는 상태에선 기존처럼 완전히 무적이라 목숨이 깎이거나 몹이 공짜로 죽는 일은 없어요</li>
+        <li>🎵 <b>보스2(닌자) 잡고 웨이브 11 시작할 때 음악이 안 바뀌던 것도 확인</b> - 의도한 동작이 아니라, v34.56에서 고친 <code>startMusic()</code> 버그와 같은 증상이에요. 최신 버전으로 다시 확인해보세요</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v34.56</div>
+      <div class="patch-date">2026-09-01 06:10</div>
+      <ul class="patch-list">
+        <li>🥷 <b>게스트에게 보스2 분신이 안 보이던 문제 수정</b> - 분신 위치는 계속 전달되고 있었는데, 그리기 조건으로 쓰이는 플래그를 안 보내고 있어서 게스트 쪽에서는 항상 꺼진 상태였어요</li>
+        <li>⏱ <b>보스 잡을 때마다 게스트 화면이 15초쯤 텅 비던 문제 수정</b> - 방장이 보스를 잡을 때마다 자기 게임 시계를 새 웨이브 기준으로 맞추는데, 이게 게스트에게 전혀 전달되지 않아서 두 시계가 계속 벌어지고 있었어요. 아이템·하트가 화면에 나타나는 깜빡임 계산이 이 시계를 기준으로 하다 보니, 시계가 크게 어긋난 순간엔 자기 교정 로직이 계속 "방금 막 생긴 것"으로 되돌리기만 하고 있었던 거예요. 매 스냅샷마다 방장 시계로 재동기화하도록 고쳤어요</li>
+        <li>🎵 <b>보스 잡아도 음악이 안 바뀌던 문제 수정</b> - 사실 이건 멀티 문제가 아니라 <b>전역 버그</b>였어요. 평상시 음악으로 돌아가는 함수에 "이미 재생 중이면 아무것도 안 함" 가드가 있었는데, 보스 음악이 재생 중인 상태에서 이 함수가 불리면 그 가드에 걸려서 그냥 무시되고 있었어요. 보스 음악이 끝없이 계속 흘러나온 거예요</li>
+        <li>💀 <b>보스3 시작해도 잡몹이 안 사라지던 문제 수정</b> - 보스1·보스2는 시작하자마자 필드의 잡몹을 전부 비우는데, 보스3만 자기 소환수만 걸러내고 원래 있던 웨이브 잡몹은 그대로 남겨두고 있었어요</li>
+        <li>🔮 <b>보스3 마나고갈 상태에서 공격이 씹히는 경우 보완</b> - 마나가 다 떨어져 무방비 상태로 들어가는 순간, 직전 피격의 쿨다운이 그대로 남아있으면 그 창이 열리자마자 잠깐 판정이 막힐 수 있었어요. 상태 진입 시 쿨다운을 확실히 초기화하도록 했어요</li>
+        <li>👻 <b>유령(다운) 상태에서도 칼날이 남아 몹을 계속 죽이던 문제 수정</b> - 죽기 직전에 칼날이 돌고 있었다면, 다운된 뒤에도(화면엔 희미하게 계속 보이니까) 판정만은 계속 살아있었어요. 다운 중엔 판정이 멈추도록 5곳 모두 손봤어요</li>
+        <li>🦴 <b>본 스톰 난이도 소폭 하향</b> - 경고 없이 날아오는 설계는 그대로 두고(의도된 부분), 발사 간격을 늘리고 파편 속도를 살짝 줄여서 피할 여유를 조금 더 뒀어요</li>
+        <li>🛡 <b>같이하기에서 방패병이 각자 자기 쪽만 바라보던 문제 수정</b> - 방향 계산이 그때그때 "이 화면을 보고 있는 사람" 기준으로 따로 이뤄지고 있어서, 방장은 방패병이 방장 쪽을 막고 있다고 판정하고 게스트 화면은 게스트 쪽을 막는 것처럼 그려지고 있었어요(실제 막힘 여부도 이 계산을 따라가니, 둘이 서로 다른 판정을 보고 있었던 셈이에요). 이제 방장이 매 프레임 하나의 방향만 계산해서 게스트에게 전달하고, 판정과 그림 모두 그 값 하나만 봐요</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
       <div class="patch-version">v34.55</div>
       <div class="patch-date">2026-09-01 04:20</div>
       <ul class="patch-list">
@@ -3268,7 +3327,7 @@
       <div>
         <div class="dex-name">운석 낙하</div>
         <div class="dex-wave-tag">BOSS2 처치 시 해금</div>
-        <div class="dex-desc">먹는 순간 필드 위에서 체력이 가장 많은 적을 겨냥합니다. 1초간 경고 표시가 뜬 뒤 넓은 범위에 운석이 떨어져 범위 안의 모든 적(보스 약점 포함)에게 2씩 피해를 줍니다. 범위 안에 플레이어가 서 있으면 플레이어도 맞으니 주의하세요.</div>
+        <div class="dex-desc">먹는 순간 필드 위에서 체력이 가장 많은 적을 겨냥합니다. 1초간 경고 표시가 뜬 뒤 넓은 범위에 운석이 떨어져 범위 안의 모든 적(보스 약점 포함)에게 2씩 피해를 줍니다.</div>
       </div>
     </div>
     <div class="dex-entry" data-lock-type="item" data-lock-key="leapSlam">
@@ -3934,7 +3993,7 @@
     heartPickups.push({ x, y, owner: 0, bobPhase: rand(0, Math.PI*2), spawnedAt: elapsed });
   }
   function registerBossClearForSkins(){
-    if (bossReplayMode || ninjaReplayMode || necroReplayMode) return;
+    if (bossReplayMode || ninjaReplayMode || necroReplayMode || devModeUsedThisRun) return;
     if (lives === 3) save.fullLifeBossClears = (save.fullLifeBossClears||0) + 1;
     if (lives === 1) save.oneLifeBossClears = (save.oneLifeBossClears||0) + 1;
     if (!bossFightDamageTaken) save.noDamageBossClears = (save.noDamageBossClears||0) + 1;
@@ -4309,7 +4368,16 @@
     musicStepIndex = 0; // clean restart into the new track/tempo
   }
   function startMusic(){
-    if (musicPlaying) return;
+    // The other three (startBossMusic/startNinjaMusic/startNecroMusic) all
+    // call stopMusic() first, so switching INTO a boss track always works.
+    // This one didn't - it just returned immediately if musicPlaying was
+    // already true. That's exactly the case every time a boss fight ends:
+    // boss music left musicPlaying true, and every "return to calm music"
+    // call site (endBossEncounter, endNinjaEncounter, endNecroEncounter, and
+    // the guest's own post-fight music sync) calls this expecting it to
+    // switch tracks. Instead it silently did nothing, and the boss track's
+    // own self-perpetuating setTimeout loop just kept going forever.
+    stopMusic();
     musicPlaying = true;
     musicStepIndex = 0;
     musicIntensityTense = false;
@@ -4558,18 +4626,25 @@
   }
   function markEnemySeen(type){
     if (save.enemiesSeen[type]) return;
+    if (devModeUsedThisRun) return; // feeds dexIsComplete() -> mage_back skin
     save.enemiesSeen[type] = true;
     persistSave();
   }
   function markBossSeen(id){
     if (save.bossesSeen[id]) return;
+    if (devModeUsedThisRun) return;
     save.bossesSeen[id] = true;
     persistSave();
   }
   function recordItemKill(type){
     // boss replay is meant to be a consequence-free rematch of just that
-    // fight - none of this should count toward achievements/skin unlocks
-    if (bossReplayMode || ninjaReplayMode || necroReplayMode) return;
+    // fight - none of this should count toward achievements/skin unlocks.
+    // Dev mode (invincibility, HP slider, speed sliders...) gets the same
+    // treatment - not just blocking the unlock POPUP (see checkSkinUnlocks)
+    // but the underlying count itself, so a dev-mode run can't quietly stack
+    // up progress that then unlocks the moment a legitimate run's own
+    // checkSkinUnlocks() call happens to run next.
+    if (bossReplayMode || ninjaReplayMode || necroReplayMode || devModeUsedThisRun) return;
     if (save.itemKills[type] === undefined) return;
     save.itemKills[type]++;
     schedulePersist();
@@ -6544,6 +6619,18 @@
   let skinUnlockBannerTimer = 0;
   let skinUnlockBannerText = '';
   function checkSkinUnlocks(){
+    // Every call site below fires from real gameplay events (boss kills, wave
+    // milestones, kill combos, score, heart pickups...) with no dev-mode
+    // check of its own - only the score-based "personal best" unlock path
+    // was ever guarded against dev mode (see endGame's excludeFromRecords).
+    // Every OTHER unlock condition (kill counts, no-damage clears, fastest
+    // clear times, etc.) was still freely satisfiable with invincibility,
+    // the HP slider, or speed sliders on. Centralizing the guard here
+    // instead of at each call site catches all of them at once. Doesn't
+    // apply at the very first page-load call (before any run has started,
+    // devModeUsedThisRun is still false then) - that one's for granting
+    // everyone the event-free skins, unrelated to any run's legitimacy.
+    if (devModeUsedThisRun) return;
     let changed = false;
     Object.keys(SKIN_DEFS).forEach(id=>{
       if (!save.unlockedSkins[id] && SKIN_DEFS[id].check()){
@@ -8018,6 +8105,22 @@
       // the host's own measurement of one-way delay, sent back so the guest can
       // account for how old `ts` already is by the time it arrives
       lg: Math.round(mpPartnerLagMs),
+      // The host's own game clock. It jumps - not just ticks - whenever a
+      // boss fight ends (endBossEncounter() etc. snap it down to the new
+      // wave's start so items don't think a whole boss fight's worth of time
+      // has passed). The guest ran its OWN independent elapsed, incremented
+      // every local frame and never told about that jump, so after every
+      // boss kill the two clocks silently split apart by however long the
+      // fight overran its "scheduled" wave slot - often 10-20s. Every item/
+      // heart's blink-before-despawn timing on the guest's screen is computed
+      // against elapsed, so with the clocks that far apart, freshly
+      // host-spawned items compared against the guest's own far-ahead elapsed
+      // looked already-expired and the self-correction guard kept
+      // re-anchoring them every frame - which is what looked like "nothing
+      // shows up for ~15s" until the guest's own clock happened to drift back
+      // into range. Sent every snapshot so the guest can hard-sync to it, not
+      // just once at the moment of the jump.
+      el: Math.round(elapsed),
       // simulation sounds that fired since the last snapshot (see mpRelaySfx)
       sx: mpSfxBuf.length ? mpSfxBuf.splice(0, mpSfxBuf.length) : undefined,
       w: wave,
@@ -8060,7 +8163,14 @@
       // wherever that unrelated enemy happened to be (often off-screen).
       en: enemies.map(e=>({ id:mpEnemyId(e), x:Math.round(e.x), y:Math.round(e.y),
                             t:e.type, h:e.hp,
-                            g:e.spawnGraceTimer>0?1:0, p:(e.type==='phaser'&&e.phased)?1:0 })),
+                            g:e.spawnGraceTimer>0?1:0, p:(e.type==='phaser'&&e.phased)?1:0,
+                            // Only shieldGuard actually uses this (see where
+                            // it's set, in the main enemy movement loop) - one
+                            // authoritative facing shared by host and guest,
+                            // instead of each side computing its own from its
+                            // own local player and disagreeing about which
+                            // side of the shield blocks.
+                            fa: e.type==='shieldGuard' && e.faceAngle!==undefined ? +e.faceAngle.toFixed(2) : undefined })),
       it: items.map(i=>({ x:Math.round(i.x), y:Math.round(i.y), t:i.type, o:i.owner||0 })),
       hp: heartPickups.map(h=>({ x:Math.round(h.x), y:Math.round(h.y), o:h.owner||0 })),
       zo: zones.map(z=>({ x:Math.round(z.x), y:Math.round(z.y), r:Math.round(z.r), c:z.color, l:Math.round(z.life) })),
@@ -8101,6 +8211,12 @@
       nt: ninjaTelegraphs.map(mpStripFx),
       nh: ninjaHazards.map(mpStripFx),
       ncl: ninjaClones.map(mpStripFx),
+      // Whether clone mode is currently active. The clones' positions were
+      // already being sent (ncl above), but the DRAW of them is gated on this
+      // flag - it stayed at its default false on the guest forever, since
+      // nothing ever set it there. Positions arrived but nothing drew them:
+      // clones were simply invisible to the guest for the whole phase.
+      ncm: ninjaCloneModeActive ? 1 : 0,
       ct: necroTelegraphs.map(mpStripFx),
       chz: necroHazards.map(mpStripFx),
       // boss state - only the fields the guest needs in order to draw them
@@ -8123,6 +8239,14 @@
   }
   // ---- guest: adopt the host's world wholesale ----
   function mpApplySnapshot(s){
+    // Hard-sync the guest's own game clock to the host's every snapshot - see
+    // the long comment on `el` in mpBuildSnapshot for why this can't just be
+    // left to free-run locally (a boss-defeat jump on the host would
+    // otherwise silently orphan the guest's copy). Between snapshots the
+    // guest still increments its own elapsed every frame as before (see the
+    // main loop) for smooth blink timing; this just re-anchors it to the
+    // authoritative value each time a fresh one arrives.
+    if (typeof s.el === 'number') elapsed = s.el;
     // ---- interpolation bookkeeping ----
     // Snapshots arrive ~20x/sec but we draw at ~60fps. Snapping straight to
     // each new position makes everything visibly stutter in 20 steps. So we
@@ -8221,6 +8345,9 @@
       // drawn position and is eased toward the target each frame
       return { id:e.id, x:e.x, y:e.y, tx:e.x, ty:e.y, r:def.r*sizeScale, type:e.t, hp:e.h, maxHp:def.hp,
                spawnGraceTimer: e.g?1:0, phased: !!e.p,
+               // shieldGuard's one authoritative facing (see mpBuildSnapshot's
+               // `fa` field) - undefined for every other type, same as before
+               faceAngle: e.fa,
                hitCooldown:0, wanderPhase:0 };
     });
     // Carry each enemy's own last drawn position over (matched by id, not
@@ -8271,6 +8398,7 @@
     ninjaTelegraphs = s.nt || [];
     ninjaHazards = s.nh || [];
     ninjaClones = s.ncl || [];
+    ninjaCloneModeActive = !!s.ncm;
     necroTelegraphs = s.ct || [];
     necroHazards = s.chz || [];
     // Freeze is a shared, world-wide effect, so whoever triggered it, both
@@ -8519,6 +8647,21 @@
     if (Math.hypot(player.vx, player.vy) > 0.05){
       skinFacingAngle = Math.atan2(player.vy, player.vx);
     }
+    // per-skin movement sound - this whole block only ever existed inside
+    // the host-only update(), so a guest playing co-op never heard their own
+    // equipped skin's movement sound at all (solo and hosting were both
+    // fine, since both go through update()). Mirrors that block exactly.
+    if (skinMoveSoundTimer > 0) skinMoveSoundTimer -= dt;
+    const isActuallyMoving = Math.hypot(player.vx, player.vy) > 0.05;
+    const completeSkinSet = getCompleteEquippedSet();
+    if (isActuallyMoving && skinSoundEnabled && completeSkinSet && SKIN_MOVE_SFX[completeSkinSet + '_back']){
+      if (skinMoveSoundTimer <= 0){
+        SKIN_MOVE_SFX[completeSkinSet + '_back']();
+        skinMoveSoundTimer = 420;
+      }
+    } else if (!isActuallyMoving){
+      skinMoveSoundTimer = 0;
+    }
   }
   // per-frame work that must happen regardless of which movement state the
   // guest is in: pickups, buff timers, and its own hit detection
@@ -8640,7 +8783,7 @@
         }
       }
     }
-    if (!mpSelfDown && invincible <= 0 && fireState === 'idle'
+    if (!mpSelfDown && (invincible <= 0 || (devModeActive && devInvincibleActive && hasShield)) && fireState === 'idle'
         && freezeTimer <= 0 && invincibleBuffTimer <= 0){
       for (let i=0;i<enemies.length;i++){
         const en = enemies[i];
@@ -8790,8 +8933,7 @@
           }
           return true;
         });
-        addZone(px, py, shockPulseRadius, 260, ITEM_COLORS.shockPulse);
-        sfxBomb();
+        addParticles(px, py, ITEM_COLORS.shockPulse, 10);
       }
     }
     if (mpIsHost && mpPartnerBladeTimer > 0){
@@ -10652,13 +10794,18 @@
     if (en.hitCooldown > 0) return false;
     if (en.type === 'phaser' && en.phased) return false; // completely intangible while phased out
     if (en.type === 'shieldGuard' && !bypassShield){
-      // the shield always faces the player - hits from within its frontal arc
-      // are blocked (a clang, no damage); only side/rear hits get through.
-      // Explosions and lightning ignore this entirely (bypassShield=true) -
-      // a shield stops a thrown/aimed weapon, not a blast or an arc of current
+      // the shield always faces whichever player it's chasing - hits from
+      // within its frontal arc are blocked (a clang, no damage); only side/
+      // rear hits get through. Explosions and lightning ignore this entirely
+      // (bypassShield=true) - a shield stops a thrown/aimed weapon, not a
+      // blast or an arc of current.
+      // en.faceAngle is the one authoritative direction (set host-side each
+      // frame, synced to the guest) - falling back to the old local-player
+      // calc only covers the split-second before an enemy's first facing
+      // update lands, not a real second source of truth.
       const srcX = sx !== undefined ? sx : player.x;
       const srcY = sy !== undefined ? sy : player.y;
-      const facing = Math.atan2(player.y-en.y, player.x-en.x);
+      const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
       const toSource = Math.atan2(srcY-en.y, srcX-en.x);
       let diff = Math.abs(facing - toSource);
       if (diff > Math.PI) diff = Math.PI*2 - diff;
@@ -10678,9 +10825,9 @@
       if (sourceType) recordItemKill(sourceType);
       sfxEnemyDown();
       if (en.necroSummon) onNecroSummonKilled(en);
-      // ---- skin-unlock tracking (skipped entirely during boss replay - see
-      // the design note near the top of this function) ----
-      if (!bossReplayMode && !ninjaReplayMode && !necroReplayMode){
+      // ---- skin-unlock tracking (skipped entirely during boss replay or a
+      // dev-mode run - see the design note near the top of this function) ----
+      if (!bossReplayMode && !ninjaReplayMode && !necroReplayMode && !devModeUsedThisRun){
         if (en.type === 'shieldGuard'){ save.shieldGuardKills = (save.shieldGuardKills||0) + 1; }
         if (en.type === 'boneArcher' || en.type === 'cursedWraith'){ save.necroSpecialKills = (save.necroSpecialKills||0) + 1; }
         if (lives === 1){ save.killsAtOneLife = (save.killsAtOneLife||0) + 1; }
@@ -10876,7 +11023,7 @@
     bossPhaseBannerTimer = 1600;
     bossPhaseBannerText = '🎉 보스 클리어!';
     addScore(500);
-    if (!bossReplayMode){ save.bossKills = (save.bossKills || 0) + 1; }
+    if (!bossReplayMode && !devModeUsedThisRun){ save.bossKills = (save.bossKills || 0) + 1; }
     save.bossDefeatedEver = true;
     registerBossClearForSkins();
     persistSave();
@@ -11030,7 +11177,7 @@
     let hit = false, sourceColor = null;
     // only items count here otherwise, same as how enemies are normally damaged -
     // just touching it with the player's body (with no buff active) does nothing
-    if (bladeTimer > 0){
+    if (bladeTimer > 0 && !mpSelfDown){
       const t = mpSharedNow();
       for (let i=0;i<bladeCount;i++){
         const angle = (t/260) + (i * (Math.PI*2/bladeCount));
@@ -11098,7 +11245,7 @@
 
       if (p.hitCooldown > 0) return;
       let hit = false, sourceColor = null;
-      if (bladeTimer > 0){
+      if (bladeTimer > 0 && !mpSelfDown){
         const t = mpSharedNow();
         for (let i=0;i<bladeCount;i++){
           const angle = (t/260) + (i * (Math.PI*2/bladeCount));
@@ -11648,7 +11795,7 @@
     ninjaPhaseBannerTimer = 1500;
     ninjaPhaseBannerText = '🎉 보스 클리어!';
     addScore(600);
-    if (!ninjaReplayMode){ save.ninjaKills = (save.ninjaKills || 0) + 1; }
+    if (!ninjaReplayMode && !devModeUsedThisRun){ save.ninjaKills = (save.ninjaKills || 0) + 1; }
     save.ninjaDefeatedEver = true;
     registerBossClearForSkins();
     persistSave();
@@ -11694,7 +11841,7 @@
         return;
       }
       let hit = false, color = null;
-      if (bladeTimer > 0){
+      if (bladeTimer > 0 && !mpSelfDown){
         const t = mpSharedNow();
         for (let i=0;i<bladeCount;i++){
           const angle = (t/260) + (i * (Math.PI*2/bladeCount));
@@ -12215,7 +12362,11 @@
     necroPatternTimer = 1400;
     necroBoneKnight = null;
     necroSoulBuffTimer = 0;
-    enemies = enemies.filter(en => !en.necroSummon);
+    // Boss1 and boss2 both clear the whole enemy field the instant their
+    // fight starts (see startBossEncounter/startNinjaEncounter) - this one
+    // only filtered out its OWN summons, leaving whatever regular wave mobs
+    // happened to still be alive standing around through the entire fight.
+    enemies = [];
     const isFirstNecroEncounter = !save.bossesSeen.necro;
     markBossSeen('necro');
     hud.classList.remove('hidden');
@@ -12283,7 +12434,7 @@
     necroPhaseBannerTimer = 1600;
     necroPhaseBannerText = '🎉 보스 클리어!';
     addScore(550);
-    if (!necroReplayMode){ save.necroKills = (save.necroKills || 0) + 1; }
+    if (!necroReplayMode && !devModeUsedThisRun){ save.necroKills = (save.necroKills || 0) + 1; }
     save.necroDefeatedEver = true;
     registerBossClearForSkins();
     persistSave();
@@ -12344,6 +12495,14 @@
     necroInvisibleSince = 0;
     necroStateTimer = 2700; // "마나 고갈" duration
     necroVulnerableDamageTaken = 0;
+    // Every hit function (tryHitNecroInRadius, checkNecroDamage, ...) refuses
+    // to land anything while necroHitCooldown > 0. That cooldown is set by
+    // whatever last hit its body, and nothing here ever cleared it - so a
+    // hit landing in the same stretch that drained the last point of mana
+    // could leave the window opening already cooldown-locked, making the
+    // very first "vulnerable, hit me now" moment look like a whiff even
+    // though the aim/targeting itself was correct.
+    necroHitCooldown = 0;
     necroHazards = necroHazards.filter(h => h.kind !== 'boneWall');
     playTone(200, 0.3, 'sawtooth', 0.09, 500);
     addParticles(necroX, necroY, '#a78bfa', 20);
@@ -12412,7 +12571,7 @@
       return;
     }
     let hit = false, color = null;
-    if (bladeTimer > 0){
+    if (bladeTimer > 0 && !mpSelfDown){
       const t = mpSharedNow();
       for (let i=0;i<bladeCount;i++){
         const angle = (t/260) + (i * (Math.PI*2/bladeCount));
@@ -12591,7 +12750,7 @@
     else { sx = -20; sy = rand(0,H); }
     const tx = player.x, ty = player.y;
     const d = Math.hypot(tx-sx, ty-sy) || 1;
-    const speed = 0.3*sizeScale;
+    const speed = 0.26*sizeScale; // was 0.3 - a touch more time to notice and step out of the line
     necroHazards.push({ kind:'stormShard', x:sx, y:sy,
       vx:(tx-sx)/d*speed, vy:(ty-sy)/d*speed, warmup:0, life:2600, hitPlayer:false });
   }
@@ -12849,7 +13008,11 @@
       necroBoneStormTimer -= dt;
       necroBoneStormTickTimer -= dt;
       if (necroBoneStormTickTimer <= 0){
-        necroBoneStormTickTimer = 450;
+        // 500ms was tight enough that dodging one shard often walked straight
+        // into the next one's line, since there's still no telegraph (that
+        // part stays intentional - see necroSpawnStormShard). Slightly more
+        // room between shards without touching the "no warning" identity.
+        necroBoneStormTickTimer = 560;
         necroSpawnStormShard();
       }
       if (necroBoneStormTimer <= 0) necroBoneStormActive = false;
@@ -13392,6 +13555,21 @@
         wave = w;
         elapsed = (w-1) * waveDuration;
         waveEl.textContent = 'WAVE ' + wave;
+        // The normal wave-progression code only ever triggers a boss fight
+        // from inside "if (newWave !== wave)" - i.e. the moment elapsed
+        // crosses into a new wave. Jumping straight to wave 5/10/15 here sets
+        // wave and elapsed to already agree with each other, so that check
+        // never sees a change and the trigger never fires - picking a boss
+        // wave from dev tools just played normal mob waves at that number
+        // forever instead of entering the fight. Firing the matching
+        // encounter directly here, exactly like boss-replay mode does.
+        if (w === BOSS_WAVE && !bossTriggered){
+          bossTriggered = true; bossFightDamageTaken = false; startBossEncounter();
+        } else if (w === NINJA_WAVE && !ninjaTriggered){
+          ninjaTriggered = true; bossFightDamageTaken = false; startNinjaEncounter();
+        } else if (w === NECRO_WAVE && !necroTriggered){
+          necroTriggered = true; bossFightDamageTaken = false; startNecroEncounter();
+        }
       }
     }
     tutorialActive = false;
@@ -13411,7 +13589,12 @@
     updateJoystickVisibility();
     lastTime = performance.now();
     requestAnimationFrame(loop);
-    startMusic();
+    // startBossEncounter()/startNinjaEncounter()/startNecroEncounter() above
+    // (when a boss wave was picked via dev tools) already handle their own
+    // intro jingle and music timing - calling the calm-music starter here
+    // unconditionally would immediately talk over that with the regular
+    // track right as the boss intro begins.
+    if (!bossActive && !ninjaActive && !necroActive) startMusic();
   }
 
   function endGame(){
@@ -14073,7 +14256,7 @@
       const newWave = 1 + Math.floor(elapsed/waveDuration);
       if (newWave !== wave){
         wave = newWave;
-        if (wave > (save.highestWaveReached||1)){
+        if (wave > (save.highestWaveReached||1) && !devModeUsedThisRun){
           save.highestWaveReached = wave;
           persistSave();
           checkSkinUnlocks();
@@ -14086,8 +14269,8 @@
           ninjaTriggered = true;
           bossFightDamageTaken = false;
           // for the skin-unlock "fast clear" condition - only meaningful during
-          // normal progression, not boss-replay mode
-          if (save.fastestNinjaWaveClearMs === null || elapsed < save.fastestNinjaWaveClearMs){
+          // normal progression, not boss-replay mode or a dev-mode run
+          if (!devModeUsedThisRun && (save.fastestNinjaWaveClearMs === null || elapsed < save.fastestNinjaWaveClearMs)){
             save.fastestNinjaWaveClearMs = elapsed;
             persistSave();
             checkSkinUnlocks();
@@ -14187,6 +14370,17 @@
         const d = Math.hypot(dx,dy) || 1;
         let mx = dx/d, my = dy/d;
         let speed = en.speedBase * devEnemySpeedMul;
+
+        // The shield's facing (which side blocks hits) needs to be ONE
+        // authoritative direction, not recomputed independently wherever it's
+        // checked - every block-check and every screen used to just plug in
+        // ITS OWN local `player`, so the host judged blocks facing the host,
+        // the guest's screen drew it facing the guest, and in co-op those two
+        // could easily disagree about which side was "the front". Anchoring
+        // it to whichever player it's actually chasing (already computed
+        // above as chaseTarget) gives one answer that's the same everywhere
+        // once it's synced down to the guest (see the enemy snapshot's `fa`).
+        if (en.type === 'shieldGuard') en.faceAngle = Math.atan2(dy, dx);
 
         // leap slam: the player is airborne/aiming and has no real presence
         // on the field - enemies shouldn't beeline for the stale spot where
@@ -14340,8 +14534,11 @@
       });
     }
 
-    // blade vs enemies
-    if (bladeTimer > 0){
+    // blade vs enemies. Also stops once the player is downed - a blade timer
+    // still running from before death kept orbiting the (faded, but still
+    // rendered) body and kept killing things, which read as "the ghost is
+    // still fighting."
+    if (bladeTimer > 0 && !mpSelfDown){
       const t = mpSharedNow();
       for (let i=0;i<bladeCount;i++){
         const angle = (t/260) + (i * (Math.PI*2/bladeCount));
@@ -14374,7 +14571,7 @@
           // a shield guard blocked head-on pops the ball outright instead of
           // just no-damaging it and letting it keep bouncing through
           if (en.type === 'shieldGuard'){
-            const facing = Math.atan2(player.y-en.y, player.x-en.x);
+            const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
             const toSource = Math.atan2(b.y-en.y, b.x-en.x);
             let diff = Math.abs(facing - toSource);
             if (diff > Math.PI) diff = Math.PI*2 - diff;
@@ -14539,7 +14736,7 @@
         // co-op: only your own heart is collectible
         if (!mpCanCollect(h.owner)) return true;
         if (distToSegment(h.x, h.y, prevPlayerX, prevPlayerY, player.x, player.y) < player.r + 16){
-          if (!bossReplayMode && !ninjaReplayMode && !necroReplayMode){
+          if (!bossReplayMode && !ninjaReplayMode && !necroReplayMode && !devModeUsedThisRun){
             save.heartsCollected = (save.heartsCollected || 0) + 1;
             persistSave();
             checkSkinUnlocks();
@@ -14602,7 +14799,7 @@
           // a shield guard blocked head-on destroys the boomerang outright
           // instead of just no-damaging it and letting it keep flying through
           if (en.type === 'shieldGuard'){
-            const facing = Math.atan2(player.y-en.y, player.x-en.x);
+            const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
             const toSource = Math.atan2(bm.y-en.y, bm.x-en.x);
             let diff = Math.abs(facing - toSource);
             if (diff > Math.PI) diff = Math.PI*2 - diff;
@@ -14817,7 +15014,7 @@
           // a shield guard intercepts the rocket head-on and destroys it
           // outright - no explosion, same as a boomerang/ball getting blocked
           if (en.type === 'shieldGuard'){
-            const facing = Math.atan2(player.y-en.y, player.x-en.x);
+            const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
             const toSource = Math.atan2(r.y-en.y, r.x-en.x);
             let diff = Math.abs(facing - toSource);
             if (diff > Math.PI) diff = Math.PI*2 - diff;
@@ -14869,17 +15066,10 @@
           tryHitBossWeakpointInRadius(m.x, m.y, m.r, ITEM_COLORS.meteor, 2);
           tryHitNinjaInRadius(m.x, m.y, m.r, ITEM_COLORS.meteor, 2);
           tryHitNecroInRadius(m.x, m.y, m.r, ITEM_COLORS.meteor, 2);
-          // A meteor is a player ITEM and deliberately hurts whoever called it
-          // down (that's its risk/reward) - but only them. A previous change
-          // routed it through the boss-hazard path as well, which made one
-          // player's meteor damage the OTHER player too: friendly fire that
-          // never existed in solo and left the guest taking hits from an
-          // item they didn't even use.
-          if (m.owner !== 2 && invincible <= 0 &&
-              Math.hypot(player.x-m.x, player.y-m.y) < m.r + player.r) hitPlayer('운석');
-          if (m.owner === 2){
-            mpHostCheckPartnerHazardHit((px,py,prr)=> Math.hypot(px-m.x, py-m.y) < m.r + prr, '운석');
-          }
+          // Meteor never hurts whoever called it down. The earlier
+          // "risk/reward, stand in it and you take damage too" design was
+          // ruled out - getting hit by your own item doesn't make sense, no
+          // matter where it lands. Only enemies/bosses take damage from it.
           addParticles(m.x, m.y, ITEM_COLORS.meteor, 26);
         }
       } else {
@@ -14903,8 +15093,18 @@
       tryHitBossWeakpointInRadius(player.x, player.y, player.r + 4, ITEM_COLORS.fire);
     }
 
-    // player vs enemies (normal collision, only when not currently burning)
-    if (invincible <= 0 && fireState === 'idle'){
+    // player vs enemies (normal collision, only when not currently burning).
+    // Dev invincibility normally blocks this whole block outright (invincible
+    // stays refreshed above 0 every frame) - which meant there was no way to
+    // actually see/test a shield popping, or body-kill a frozen enemy,
+    // without turning dev invincibility off first, at which point a life
+    // could genuinely be lost instead. Only opened up for the two cases that
+    // can never cost a life or hand out a free kill on a live enemy: holding
+    // a shield (which just pops it), and freeze being active (which only
+    // ever damages an already-frozen enemy, same as normal play). With
+    // neither of those, dev invincible still blocks the block entirely
+    // exactly as before.
+    if ((invincible <= 0 || (devModeActive && devInvincibleActive && (hasShield || freezeTimer > 0))) && fireState === 'idle'){
       for (let i=0;i<enemies.length;i++){
         const en = enemies[i];
         if (en.type === 'phaser' && en.phased) continue; // fully intangible - passes through harmlessly
@@ -15122,7 +15322,7 @@
         for (const c of candidates){
           const en = c.en;
           if (en.type === 'shieldGuard'){
-            const facing = Math.atan2(player.y-en.y, player.x-en.x);
+            const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
             const toSource = Math.atan2(y1-en.y, x1-en.x);
             let diff = Math.abs(facing - toSource);
             if (diff > Math.PI) diff = Math.PI*2 - diff;
@@ -15232,7 +15432,10 @@
       // targets whichever enemy currently has the most HP - locks in that
       // position at cast time, then strikes there after a 1s telegraph.
       // Falls back to the player's own position if there's nothing to
-      // target at all, so the item never just fizzles
+      // target at all, so the item never just fizzles. This used to matter
+      // for self-damage (getting caught in your own blast) - now that the
+      // item never damages its own caster at all, where an empty-field cast
+      // lands is cosmetic only.
       let tx, ty;
       const bossSpots = getBossVulnerableSpots();
       if (bossSpots.length){
@@ -15244,14 +15447,11 @@
         tx = target ? target.x : player.x;
         ty = target ? target.y : player.y;
       }
-      // The telegraph is the whole point of the meteor: it hurts whoever called
-      // it down, so they're meant to have time to step clear. The guest never
-      // actually got that time - the countdown starts when the HOST creates the
-      // meteor, but the guest can't see the warning ring until a full round trip
-      // later (its pickup travelling up, then the snapshot coming back), so half
-      // the window was gone before the ring appeared. Stretching the guest's
-      // delay by the measured round trip gives both players the same real
-      // reaction time on their own screen.
+      // Gives the guest the same real telegraph duration on their own screen
+      // as the host sees - the countdown starts when the HOST creates the
+      // meteor, but the guest can't see the warning ring until a full round
+      // trip later, so without this the guest's visible warning was shorter
+      // than the host's by roughly the round-trip time.
       const telegraph = 500 + (mpApplyingPartnerItem
         ? Math.min(300, Math.round(mpPartnerLagMs * 2)) : 0);
       meteors.push({ x: tx, y: ty, r: 140*sizeScale, delay: telegraph, armed: false, life: 0, owner: mpApplyingPartnerItem ? 2 : 1 });
@@ -17385,9 +17585,10 @@ function drawClockworkHead(ctx, cx, cy, t, moving){
       }
 
       if (en.type === 'shieldGuard'){
-        // the shield is drawn on whichever side currently faces the player -
-        // that's the side that blocks hits
-        const facing = Math.atan2(player.y-en.y, player.x-en.x);
+        // drawn facing en.faceAngle - the one authoritative direction shared
+        // by host and guest (see mpBuildSnapshot's `fa` field), so the side
+        // that visibly blocks is the same side that actually blocks
+        const facing = en.faceAngle !== undefined ? en.faceAngle : Math.atan2(player.y-en.y, player.x-en.x);
         const sx = en.x + Math.cos(facing)*(en.r+6);
         const sy = en.y + Math.sin(facing)*(en.r+6);
         ctx.save();
