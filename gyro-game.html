@@ -1,4 +1,4 @@
-<!-- 자이로 서바이벌 - CURRENT VERSION: v34.74 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
+<!-- 자이로 서바이벌 - CURRENT VERSION: v34.75 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -245,7 +245,7 @@
 
 <div class="overlay" id="startScreen">
   <div id="devModeLabel" class="hidden" style="position:absolute; top:6px; left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
-  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v34.74</span></h1>
+  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v34.75</span></h1>
   <p id="bestScoreLine" style="font-size:14px; color:#ffd166; font-weight:700; margin: 0 0 4px;">최고 점수: 0</p>
   <div id="mpConnectedChip" class="hidden" style="display:inline-flex; align-items:center; gap:8px; margin:2px 0 6px; padding:5px 6px 5px 12px; border-radius:14px; background:rgba(124,255,107,0.12); border:1px solid rgba(124,255,107,0.4);">
     <span style="width:7px; height:7px; border-radius:50%; background:#7cff6b; box-shadow:0 0 6px #7cff6b;"></span>
@@ -531,6 +531,13 @@
   <div id="patchNotesList" style="width:100%; max-width:340px; max-height:66vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
     <div class="patch-entry major">
       <span class="patch-major-badge">🌟 대형 업데이트</span>
+      <div class="patch-version">v34.75</div>
+      <div class="patch-date">2026-09-01 17:00</div>
+      <ul class="patch-list">
+        <li>🏆 <b>시즌2 온라인 랭킹이 안 보이던 문제 수정 (색인 문제 아니었음)</b> - 협동전 구분(category 필드)은 시즌3부터 생긴 개념이라, <b>시즌1·시즌2 기록엔 이 필드 자체가 없어요.</b> 시즌1은 이걸 감안해서 옛날 방식(전체 훑기)으로 조회하도록 예외 처리가 돼 있었는데, <b>이 예외가 시즌1에만 걸려 있고 시즌2는 빠져 있었어요.</b> 그래서 시즌2 기록에 정식 검색(category=='solo')을 걸면 애초에 없는 필드라 하나도 안 걸렸던 거예요. 색인은 정상이었고, 예외 처리 범위를 "협동전 도입 이전 모든 시즌"으로 넓혀서 해결했어요</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
       <div class="patch-version">v34.74</div>
       <div class="patch-date">2026-09-01 16:20</div>
       <ul class="patch-list">
@@ -10790,7 +10797,14 @@
     // only safe for seasons/categories that can't contain legacy rows.
     // Season 1 solo is the one bucket that can, and it falls back to the
     // old client-side approach so those old records don't vanish.
-    const isLegacyBucket = (selectedSeason === 1 && selectedCategory === 'solo');
+    // Co-op is new as of MP_RANKING_START_SEASON - every season before that
+    // (not just season 1) was written without a `category` field at all, so
+    // an indexed where('category','==','solo') matches NONE of those old
+    // rows (Firestore never matches a missing field) even though they're
+    // perfectly good solo scores. This used to only cover season 1, which
+    // silently made every season in between (season 2 here) look empty even
+    // when it had real, correctly-submitted scores sitting right there.
+    const isLegacyBucket = (selectedSeason < MP_RANKING_START_SEASON && selectedCategory === 'solo');
     if (!isLegacyBucket){
       try {
         const snap = await fbDb.collection('scores')
