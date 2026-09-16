@@ -1,4 +1,4 @@
-<!-- 자이로 서바이벌 - CURRENT VERSION: v36.40 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
+<!-- 자이로 서바이벌 - CURRENT VERSION: v36.45 (수정할 때마다 이 줄의 버전 번호도 같이 갱신할 것) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -246,7 +246,7 @@
 
 <div class="overlay" id="startScreen">
   <div id="devModeLabel" class="hidden" style="position:absolute; top:calc(6px + env(safe-area-inset-top,0px)); left:10px; font-size:9px; color:#7cff6b; opacity:0.75; letter-spacing:0.5px;">🛠 개발자 모드</div>
-  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v36.40</span></h1>
+  <h1 style="margin-bottom:6px;">🔴 자이로 서바이벌 <span style="font-size:12px; color:#6b7280; font-weight:400; vertical-align:middle;">v36.45</span></h1>
   <p id="bestScoreLine" style="font-size:14px; color:#ffd166; font-weight:700; margin: 0 0 4px;">최고 점수: 0</p>
   <div id="mpConnectedChip" class="hidden" style="display:inline-flex; align-items:center; gap:8px; margin:2px 0 6px; padding:5px 6px 5px 12px; border-radius:14px; background:rgba(124,255,107,0.12); border:1px solid rgba(124,255,107,0.4);">
     <span style="width:7px; height:7px; border-radius:50%; background:#7cff6b; box-shadow:0 0 6px #7cff6b;"></span>
@@ -535,6 +535,45 @@
   <div id="patchNotesList" style="width:100%; max-width:340px; max-height:66vh; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
     <div class="patch-entry major">
       <span class="patch-major-badge">🚀 메이저 업데이트</span>
+      <div class="patch-version">v36.45</div>
+      <div class="patch-date">2026-09-12 13:20</div>
+      <ul class="patch-list">
+        <li>⚖️ <b>[재조정] 네크로맨서 마나 고갈 밸런스 - 이전(7→9)은 계산 없이 대충 올린 값이었음, 실제 소환량 대비로 다시 계산</b> - 직접 계산해보니 필사적 소환(체력 낮을수록 최대 3배)이 붙은 후반부엔 스켈레톤 무리 하나만으로 마나 23어치가 나오는데 마나풀은 겨우 9였어요. 사실상 무리의 1/3만 잡아도 고갈되는 수준이라 거의 안 줄인 거나 마찬가지였습니다.<br><br>
+        이제 마나 최대치가 <b>페이즈2 안에서도 체력 비례로 같이 늘어나도록</b> 바꿨어요(진입 시 12 → 빈사 상태 16). 필사적 소환의 적 증가 배율과 같은 기준(체력 손실 비율)을 쓰기 때문에, "무리를 몇 %나 잡아야 고갈되는지" 비율이 페이즈2 내내 약 70%로 거의 일정하게 유지돼요 - 이전처럼 후반부에 비율이 30%대로 뚝 떨어지는 일이 없어졌습니다. 소환 개수·필사적 스케일링은 이번에도 전혀 안 건드렸어요.<br><br>
+        Playwright로 실제 값 검증: 페이즈1=10(그대로), 페이즈2는 체력손실 50%→12, 70%→13, 90%→15, 100%→16으로 계산식과 정확히 일치하는 것 확인했습니다.</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v36.44</div>
+      <div class="patch-date">2026-09-12 12:55</div>
+      <ul class="patch-list">
+        <li>🎨 <b>가시 결투사 불 장판 색조 미세조정 - 순수 파랑에서 보랏빛 도는 남색(인디고)으로</b> (rgb 37,99,235 → 79,70,229, 테두리도 밝은 파랑에서 연보라 계열로)</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v36.43</div>
+      <div class="patch-date">2026-09-12 12:40</div>
+      <ul class="patch-list">
+        <li>🎨 <b>가시 결투사 불 장판·불씨 잔재를 파란색 "저주받은 화염"으로 변경</b> (직전 버전의 빨강 대신) - 플레이어 화염 아이템(주황)과는 색 계열 자체가 완전히 달라서 더 확실하게 구분돼요.</li>
+        <li>⚖️ <b>네크로맨서 후반부 마나 고갈 밸런스 조정 - 소환 개수는 그대로, 고갈 속도만 완화</b> - 페이즈2 마나 총량을 7→9로 올렸어요. 소환수 개수·필사적 스케일링(체력 낮을수록 최대 3배 더 많이 소환)은 요청하신 대로 손 안 댔고, 대신 마나 그릇 자체를 키워서 같은 수의 적을 처치해도 고갈까지 더 오래 걸리게 했어요.</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v36.42</div>
+      <div class="patch-date">2026-09-12 12:20</div>
+      <ul class="patch-list">
+        <li>🎨 <b>가시 결투사 불 장판·불씨 잔재 색상을 플레이어 화염 아이템과 확실히 구분</b> - 둘 다 거의 같은 주황 계열(플레이어 화염 #ff6a00, 보스4 불씨 점화 #f97316)이라 순간적으로 헷갈릴 수 있었어요. 보스4의 불 장판·점화된 불씨 잔재를 <b>짙은 다홍색(crimson) 계열</b>로 바꿔서, "플레이어가 남긴 이로운 흔적(주황)"과 "보스가 만든 위험 지대(빨강)"이 색만 봐도 바로 구분되게 했어요. Playwright로 두 이펙트를 나란히 렌더링해서 실제로 확실히 다른 색으로 보이는 것까지 확인했습니다.</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
+      <div class="patch-version">v36.41</div>
+      <div class="patch-date">2026-09-05 10:30</div>
+      <ul class="patch-list">
+        <li>🐛 <b>터치로 플레이했는데 랭킹엔 "키보드"로 등록되던 문제 수정</b> - 조작방식 라벨이 <code>lastInputMethod</code>(가장 최근에 발생한 입력 이벤트)를 그때그때 읽어오는 방식이었는데, 이게 <b>랭킹 등록 시점(게임이 끝난 뒤, 닉네임을 입력하는 그 순간)</b>에 계산되고 있었어요. 태블릿 등에서 온스크린 키보드로 닉네임을 입력하면 실제 키다운 이벤트가 발생하는데, 그게 실제 플레이 내내 터치만 썼던 기록을 그 순간 "키보드"로 덮어써버린 거예요.<br><br>
+        이제 <b>게임이 끝나는 그 순간(<code>endGame()</code>)에 조작방식을 바로 고정</b>해두고, 랭킹 등록 시엔 그 고정값을 쓰도록 고쳤어요 - 그 이후 닉네임 입력 등 어떤 조작을 하든 이미 기록된 값에 영향을 안 줘요. Playwright로 검증: 터치로 플레이 → 게임 종료 → (게임오버 화면에서) 키보드 이벤트 발생 → 그래도 랭킹엔 "👆 터치"로 정확히 등록되는 것 확인했습니다.</li>
+      </ul>
+    </div>
+    <div class="patch-entry">
       <div class="patch-version">v36.40</div>
       <div class="patch-date">2026-09-05 09:20</div>
       <ul class="patch-list">
@@ -7093,9 +7132,14 @@
     wraithFireZones.forEach(z=>{
       const flick = 0.7 + Math.sin(t/55 + z.x*0.3)*0.3;
       const fadeOut = clamp(z.life/500, 0, 1); // fades out cleanly in its last 500ms instead of popping off
-      ctx.fillStyle = `rgba(220,38,38,${0.42*flick*fadeOut})`;
+      // Deliberately violet-tinted blue ("cursed flame"), not orange - the
+      // player's own fire item is a warm orange (#ff6a00) and the two were
+      // easy to mix up at a glance. Boss danger reads as indigo/violet,
+      // player buffs read as orange/warm - keeping that split consistent
+      // everywhere helps at a glance.
+      ctx.fillStyle = `rgba(79,70,229,${0.48*flick*fadeOut})`;
       ctx.beginPath(); ctx.arc(z.x, z.y, 30*sizeScale, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = '#fb923c'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8*flick*fadeOut;
+      ctx.strokeStyle = '#a5b4fc'; ctx.lineWidth = 3; ctx.globalAlpha = 0.85*flick*fadeOut;
       ctx.beginPath(); ctx.arc(z.x, z.y, 30*sizeScale, 0, Math.PI*2); ctx.stroke();
       ctx.globalAlpha = 1;
     });
@@ -7103,13 +7147,14 @@
     // 불씨 잔재 (scorch marks) - drawn first so the body/hazards sit above them
     wraithScorchMarks.forEach(m=>{
       if (!m.ignited){
-        ctx.fillStyle = 'rgba(234,88,12,0.28)';
+        ctx.fillStyle = 'rgba(55,48,163,0.28)';
         ctx.beginPath(); ctx.arc(m.x, m.y, 24*sizeScale, 0, Math.PI*2); ctx.fill();
       } else {
         const flick = 0.7 + Math.sin(t/60 + m.x)*0.3;
-        ctx.fillStyle = `rgba(249,115,22,${0.5*flick})`;
+        // same violet-blue "cursed flame" family as wtFireZone above, not the player-fire orange
+        ctx.fillStyle = `rgba(79,70,229,${0.55*flick})`;
         ctx.beginPath(); ctx.arc(m.x, m.y, 24*sizeScale, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = '#fdba74'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7*flick;
+        ctx.strokeStyle = '#a5b4fc'; ctx.lineWidth = 2; ctx.globalAlpha = 0.8*flick;
         ctx.beginPath(); ctx.arc(m.x, m.y, 24*sizeScale, 0, Math.PI*2); ctx.stroke();
         ctx.globalAlpha = 1;
       }
@@ -7344,7 +7389,19 @@
     }
   }
 
-  function necroManaMax(){ return necroPhase === 2 ? 7 : 10; }
+  function necroManaMax(){
+    if (necroPhase !== 2) return 10;
+    // Was a flat 7 all through phase 2. But the "desperation" summon-count
+    // multiplier in necroExecutePattern scales the SAME enemies up to 3x
+    // near death, so a flat pool meant the fraction of a single horde
+    // needed to empty it kept shrinking as the fight went on - by low HP,
+    // one skeletonHorde cast alone could be worth ~23 mana against a pool
+    // of just 7-9, so a third of it was already more than enough. Scaling
+    // the pool by the same hpLostRatio driver keeps that fraction roughly
+    // constant (~70%) for the whole phase instead of collapsing at the end.
+    const hpLostRatio = clamp(1 - (necroHp / necroMaxHp), 0, 1);
+    return Math.round(7 * (1 + hpLostRatio*1.3));
+  }
   const NECRO_MANA_COST = { skeleton: 1, ghost: 1, boneArcher: 2, cursedWraith: 2, boneKnight: 4 };
   let necroPatternTimer = 0;      // continuous roaming/summon-pattern cooldown
   // Phase 2 only: how long the CURRENT roaming stretch has run uninterrupted.
@@ -13502,6 +13559,7 @@
       return season === selectedSeason && category === selectedCategory;
     }).slice(0, n);
   }
+  let frozenControlModeLabel = null; // set once in endGame() - see comment there for why
   function getControlModeLabel(){
     if (lastInputMethod === 'gyro') return '🎮 자이로';
     if (lastInputMethod === 'keyboard') return '⌨️ 키보드';
@@ -13524,8 +13582,7 @@
       name: cleanName,
       score: cleanScore,
       wave: cleanWave,
-      controlMode: getControlModeLabel(),
-      season: CURRENT_SEASON,
+      controlMode: frozenControlModeLabel || getControlModeLabel(),
       category: (mpActive && mpIsHost) ? 'mp' : 'solo',
       ts: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -16867,6 +16924,14 @@
 
   function endGame(){
     running = false;
+    // Freeze the control-mode label right now, at the actual moment of death/
+    // clear - not later when the score gets submitted. getControlModeLabel()
+    // reads lastInputMethod, which just tracks whatever input event fired
+    // most recently; if it were read at submit time instead, typing a
+    // nickname on a tablet's on-screen keyboard (which dispatches real
+    // keydown events, unlike a plain touch tap) could silently overwrite a
+    // touch-only run's recorded method to "keyboard" right before it's used.
+    frozenControlModeLabel = getControlModeLabel();
     // A pause overlay must never survive into the game-over screen. In co-op
     // the run can end while a pause is up (the partner drops out), and the
     // overlay used to stay stacked on top of the game-over screen - the
