@@ -40,7 +40,23 @@
   .music .dot { width:8px; height:8px; border-radius:50%; background:#6b7280; }
   .music.on .dot { background:#7cff6b; box-shadow:0 0 8px #7cff6b; }
   .hint { font-size:10.5px; color:#5a6170; margin-top:8px; min-height:14px; }
+  .save-box { margin-top:14px; text-align:left; background:rgba(124,255,107,0.06); border:1px solid rgba(124,255,107,0.3); border-radius:14px; padding:14px; }
+  .save-box h3 { margin:0 0 8px; font-size:14px; color:#7cff6b; }
+  .save-sum { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; font-size:12px; color:#cfd6e0; margin-bottom:10px; }
+  .save-sum b { color:#fff; }
+  .save-box input { width:100%; box-sizing:border-box; margin:4px 0; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.18); background:rgba(0,0,0,0.35); color:#fff; font-size:14px; font-family:inherit; -webkit-user-select:text; user-select:text; }
+  .row { display:flex; gap:6px; }
+  .btn2 { flex:1; padding:11px 0; border-radius:20px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.08); color:#e8edf3; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn2.primary { background:linear-gradient(135deg,#3ddc84,#2bb673); border:none; color:#06150c; }
+  .btn2:disabled { opacity:0.5; }
+  .save-msg { font-size:12px; line-height:1.5; margin-top:8px; min-height:16px; }
+  .save-note { font-size:11px; color:#8b93a1; line-height:1.55; margin-top:8px; }
+  .hidden { display:none !important; }
+  .wrap { max-height:100vh; overflow-y:auto; }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
 </head>
 <body>
 <canvas id="bg"></canvas>
@@ -56,11 +72,149 @@
     <div class="url">hazeg.itch.io/gyro-survival</div>
     <a class="go" id="goBtn" href="https://hazeg.itch.io/gyro-survival" target="_top" rel="noopener">새 사이트로 이동 →<small>Go to the new site</small></a>
     <div class="note">💾 예전 기록을 게임 안 "진행도 서버 저장/불러오기"로 저장해두었다면, 새 사이트에서 그대로 불러올 수 있어요.</div>
+
+    <div class="save-box" id="saveBox">
+      <h3>💾 이 기기에 남은 예전 기록</h3>
+      <div id="saveNone" class="save-note hidden">이 기기(이 브라우저)에는 예전 게임 기록이 남아 있지 않아요. 예전에 다른 폰이나 다른 브라우저로 했다면 그 기기에서 이 페이지를 열어주세요.</div>
+      <div id="saveHas" class="hidden">
+        <div class="save-sum" id="saveSum"></div>
+        <details id="saveDetail" style="margin:-2px 0 10px; font-size:12px; color:#cfd6e0;">
+          <summary style="cursor:pointer; color:#8bd7ff; font-size:12px;">📋 진행도 자세히 보기</summary>
+          <div id="saveDetailBody" style="margin-top:8px; line-height:1.7;"></div>
+        </details>
+        <button class="btn2 primary" id="openSaveForm" style="width:100%;">☁️ 이 기록을 클라우드에 저장하기</button>
+        <div id="saveForm" class="hidden" style="margin-top:10px;">
+          <div class="row"><input id="cid" maxlength="12" placeholder="ID (4~12자)" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn2" id="cidRand" style="flex:0 0 72px;">🎲 랜덤</button></div>
+          <input id="pw1" type="password" placeholder="비밀번호 (4자 이상)" autocomplete="new-password">
+          <input id="pw2" type="password" placeholder="비밀번호 확인" autocomplete="new-password">
+          <button class="btn2 primary" id="doSave" style="width:100%; margin-top:6px;">저장하기</button>
+          <div class="save-msg" id="saveMsg"></div>
+        </div>
+        <div class="save-note">저장한 뒤 새 사이트에서 <b>"진행도 서버 저장/불러오기" → ID 입력 → 불러오기</b>를 누르면 이어서 할 수 있어요. ID와 비밀번호는 꼭 따로 적어두세요.</div>
+      </div>
+    </div>
   </div>
   <button class="music" id="musicBtn"><span class="dot"></span><span id="musicLabel">🎵 로비 음악: 켜짐</span></button>
   <div class="hint" id="musicHint"></div>
 </div>
 <script>
+// ---------- old local save -> cloud ----------
+(function(){
+  const $ = id => document.getElementById(id);
+  let save = null;
+  try { const raw = localStorage.getItem('gyroSurvivalSaveV3'); if (raw) save = JSON.parse(raw); } catch(e){}
+  if (!save || typeof save !== 'object'){ $('saveNone').classList.remove('hidden'); return; }
+  $('saveHas').classList.remove('hidden');
+  const bosses = ['bossDefeatedEver','ninjaDefeatedEver','necroDefeatedEver','wraithDefeatedEver'].filter(k=>save[k]).length;
+  const skins = Object.keys(save.unlockedSkins || {}).filter(k=>save.unlockedSkins[k]).length;
+  $('saveSum').innerHTML = '<div>최고 점수 <b>' + (save.bestScore||0) + '</b></div><div>최고 웨이브 <b>' + (save.highestWaveReached||1) + '</b></div>'
+    + '<div>처치한 보스 <b>' + bosses + ' / 4</b></div><div>모은 스킨 <b>' + skins + '</b></div>';
+  // short read-only view of everything the old save holds
+  (function(){
+    const n = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
+    const SETS = { angel:'천사', demon:'악마', neon:'네온', ghost:'유령', mecha:'메카', knight:'기사', pirate:'해적', astro:'우주인', samurai:'사무라이', mage:'대마법사', gumiho:'구미호', clockwork:'시계태엽' };
+    const PART = { back:'등', mask:'가면', head:'머리' };
+    const bossRow = (name, kills, beaten) => '<div>' + name + ' — ' + (beaten ? '✅ 처치 ' + n(kills) + '회' : '❌ 아직') + '</div>';
+    const owned = {};
+    Object.keys(save.unlockedSkins || {}).forEach(id=>{
+      if (!save.unlockedSkins[id]) return;
+      const i = id.lastIndexOf('_'), set = id.slice(0, i), part = id.slice(i+1);
+      (owned[set] = owned[set] || []).push(PART[part] || part);
+    });
+    const skinTxt = Object.keys(owned).length
+      ? Object.keys(owned).map(k=>(SETS[k]||k) + '(' + owned[k].join('·') + ')').join(', ')
+      : '없음';
+    const eq = save.equippedSkins || {};
+    const eqTxt = ['back','mask','head'].filter(k=>eq[k]).map(k=>{ const id = eq[k], i = id.lastIndexOf('_'); return PART[k] + ' ' + (SETS[id.slice(0,i)] || id.slice(0,i)); }).join(', ') || '없음';
+    const itemKillsTotal = Object.values(save.itemKills || {}).reduce((a,b)=>a + n(b), 0);
+    const enemies = Object.keys(save.enemiesSeen || {}).filter(k=>save.enemiesSeen[k]).length;
+    const ninjaBest = typeof save.fastestNinjaWaveClearMs === 'number' ? (save.fastestNinjaWaveClearMs/1000).toFixed(1) + '초' : '-';
+    $('saveDetailBody').innerHTML =
+      '<div style="color:#ffd166; font-weight:700;">🏆 기록</div>'
+      + '<div>최고 점수 ' + n(save.bestScore) + ' · 최고 웨이브 ' + (save.highestWaveReached || 1) + '</div>'
+      + '<div style="color:#ffd166; font-weight:700; margin-top:6px;">👾 보스</div>'
+      + bossRow('🤖 거대로봇', save.bossKills, save.bossDefeatedEver)
+      + bossRow('🥷 닌자', save.ninjaKills, save.ninjaDefeatedEver)
+      + bossRow('💀 네크로맨서', save.necroKills, save.necroDefeatedEver)
+      + bossRow('⚔️ 가시 결투사', save.wraithKills, save.wraithDefeatedEver)
+      + '<div>체력 꽉 찬 채 클리어 ' + n(save.fullLifeBossClears) + '회 · 무피해 클리어 ' + n(save.noDamageBossClears) + '회</div>'
+      + '<div style="color:#ffd166; font-weight:700; margin-top:6px;">📊 기타</div>'
+      + '<div>아이템으로 처치 ' + itemKillsTotal + '마리 · 만난 적 종류 ' + enemies + '</div>'
+      + '<div>하트 ' + n(save.heartsCollected) + '개 · 닌자 웨이브 최단 도달 ' + ninjaBest + '</div>'
+      + '<div style="color:#ffd166; font-weight:700; margin-top:6px;">🎨 스킨</div>'
+      + '<div>모은 스킨: ' + skinTxt + '</div>'
+      + '<div>장착 중: ' + eqTxt + '</div>';
+  })();
+  $('openSaveForm').onclick = ()=>{ $('openSaveForm').classList.add('hidden'); $('saveForm').classList.remove('hidden'); };
+  $('cidRand').onclick = ()=>{
+    const cs = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789', sy = '!@#$%^&*-_+=';
+    const a = []; for (let i=0;i<7;i++) a.push(cs[Math.floor(Math.random()*cs.length)]);
+    a.splice(Math.floor(Math.random()*8), 0, sy[Math.floor(Math.random()*sy.length)]);
+    $('cid').value = a.join('');
+  };
+  const msg = (t, c)=>{ $('saveMsg').textContent = t; $('saveMsg').style.color = c || '#cfd6e0'; };
+  let db = null;
+  try {
+    firebase.initializeApp({ apiKey: "AIzaSyAR0gqV4i4cV4yMwKIF7ork-qz0rdmAhyA", authDomain: "gyro-game-60ce2.firebaseapp.com", projectId: "gyro-game-60ce2", storageBucket: "gyro-game-60ce2.firebasestorage.app" });
+    try { firebase.appCheck().activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LdMHaAtAAAAAKHIxtPgdUha2tmntcEv8bvsd_4s'), true); } catch(e){}
+    db = firebase.firestore();
+  } catch(e){ db = null; }
+  async function sha256Hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  // same shape the game itself saves (buildProgressSnapshot in the game)
+  function snapshot(){
+    const seen = k => { try { return !!localStorage.getItem(k); } catch(e){ return false; } };
+    const s = save;
+    return {
+      bestScore: s.bestScore || 0, bossKills: s.bossKills || 0, bossDefeatedEver: !!s.bossDefeatedEver,
+      ninjaKills: s.ninjaKills || 0, ninjaDefeatedEver: !!s.ninjaDefeatedEver,
+      necroKills: s.necroKills || 0, necroDefeatedEver: !!s.necroDefeatedEver,
+      wraithKills: s.wraithKills || 0, wraithDefeatedEver: !!s.wraithDefeatedEver,
+      itemKills: s.itemKills || {}, enemiesSeen: s.enemiesSeen || {}, bossesSeen: s.bossesSeen || {},
+      tracksHeard: s.tracksHeard || { calm:false, tense:false, push:false, surge:false, peak:false, boss:false, ninja:false, necro:false, wraith:false },
+      itemLoadout: s.itemLoadout || {}, loadoutPresets: Array.isArray(s.loadoutPresets) ? s.loadoutPresets.slice(0,5) : [],
+      unlockedSkins: s.unlockedSkins || {}, equippedSkins: s.equippedSkins || { back:null, mask:null, head:null }, skinBaseline: s.skinBaseline || null,
+      heartsCollected: s.heartsCollected || 0, fullLifeBossClears: s.fullLifeBossClears || 0, oneLifeBossClears: s.oneLifeBossClears || 0,
+      killsAtOneLife: s.killsAtOneLife || 0, multiKillCombos: s.multiKillCombos || 0, necroSpecialKills: s.necroSpecialKills || 0,
+      shieldGuardKills: s.shieldGuardKills || 0,
+      fastestNinjaWaveClearMs: typeof s.fastestNinjaWaveClearMs === 'number' ? s.fastestNinjaWaveClearMs : null,
+      noDamageBossClears: s.noDamageBossClears || 0, highestWaveReached: s.highestWaveReached || 1,
+      postSkinUpdateBestScore: s.postSkinUpdateBestScore || 0,
+      seenSkinPromo: seen('gyroSurvivalSeenSkinPromoV1'), seenNewSkinPromo: seen('gyroSurvivalSeenNewSkinPromoV1'),
+      seenLoadoutTutorial: seen('gyroSurvivalSeenLoadoutTutorialV1'), seenCloudPasswordPromo: seen('gyroSurvivalSeenCloudPasswordPromoV1'),
+      seenMpPromo: seen('gyroSurvivalSeenMpPromoV1'), seenMpTour: seen('gyroSurvivalSeenMpTourV1'), seenMainMenuTutorial: seen('gyroSurvivalSeenMainMenuTutorialV1'),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+  }
+  let confirmOverwrite = null;
+  $('doSave').onclick = async ()=>{
+    const id = $('cid').value.trim(), p1 = $('pw1').value, p2 = $('pw2').value;
+    if (!db){ msg('지금은 서버에 연결할 수 없어요. 인터넷 연결을 확인하고 새로고침해주세요.', '#ff8a5b'); return; }
+    if (!/^[^\s\/]{4,12}$/.test(id)){ msg('ID는 4~12자, 공백과 / 없이 써주세요.', '#ff8a5b'); return; }
+    if (!p1 || p1.length < 4){ msg('비밀번호는 4자 이상이어야 해요.', '#ff8a5b'); return; }
+    if (p1 !== p2){ msg('비밀번호가 서로 달라요.', '#ff8a5b'); return; }
+    $('doSave').disabled = true; msg('확인 중...');
+    try {
+      const ref = db.collection('progress').doc(id);
+      const doc = await ref.get();
+      const hash = await sha256Hex(p1);
+      if (doc.exists && confirmOverwrite !== id){
+        const d = doc.data() || {};
+        if (d.passwordHash && d.passwordHash !== hash){ msg('❌ 이미 다른 사람이 쓰는 ID예요 (또는 비밀번호가 달라요). 다른 ID를 써주세요.', '#ff5566'); $('doSave').disabled = false; return; }
+        confirmOverwrite = id;
+        msg('⚠️ 이 ID에 이미 클라우드 기록(최고 점수 ' + (d.bestScore||0) + ')이 있어요. 이 기기의 예전 기록으로 덮어쓰려면 "저장하기"를 한 번 더 눌러주세요.', '#ffd166');
+        $('doSave').disabled = false; return;
+      }
+      msg('저장 중...');
+      await ref.set(Object.assign(snapshot(), { passwordHash: hash }));
+      msg('✅ 저장 완료! 새 사이트 → "진행도 서버 저장/불러오기" → ID "' + id + '" 입력 → 불러오기', '#7cff6b');
+      try { localStorage.setItem('gyroMovedCloudSavedId', id); } catch(e){}
+    } catch(e){
+      msg((e && e.code === 'permission-denied') ? '❌ 저장이 거절됐어요. 비밀번호를 확인하거나 다른 ID를 써주세요.' : '저장 실패: ' + (e && e.message || e), '#ff5566');
+    }
+    $('doSave').disabled = false;
+  };
+  try { const prev = localStorage.getItem('gyroMovedCloudSavedId'); if (prev){ $('saveMsg').textContent = '이 기기에서 전에 ID "' + prev + '"로 저장했어요.'; } } catch(e){}
+})();
 (function(){
   // ---------- background: drifting red dots + grid floor (like the game's menu) ----------
   const cv = document.getElementById('bg'), g = cv.getContext('2d');
